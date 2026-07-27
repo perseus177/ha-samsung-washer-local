@@ -1,0 +1,144 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Samsung washing machine",
+        "description": "The appliance needs a client certificate signed by Samsung's AC14K_M CA and a device token. Both can be produced with the scripts in the tools folder of the repository; see the README.",
+        "data": {
+          "host": "IP address",
+          "token": "Device token",
+          "cert_pem": "Client certificate chain (PEM)",
+          "key_pem": "Client private key (PEM)",
+          "port": "Port"
+        },
+        "data_description": {
+          "host": "Give the appliance a fixed address in your DHCP server, otherwise the integration will lose it.",
+          "token": "The 10-character token the appliance sent back to the listener on port 8889."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Renew the device token",
+        "description": "The appliance at {host} rejected the current token. Request a new one and paste it here.",
+        "data": {
+          "token": "Device token"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "The appliance is not reachable. It only stays on the Wi-Fi while Remote Control is switched on, so switch that on (with the door closed) and try again.",
+      "invalid_auth": "The appliance rejected the device token.",
+      "invalid_certificate": "The certificate or the private key could not be used. Check that both PEM blocks were pasted in full."
+    },
+    "abort": {
+      "already_configured": "This appliance is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Polling",
+        "data": {
+          "poll_interval": "Poll interval (seconds, 0 disables polling)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "power": {
+        "name": "Power"
+      },
+      "remote_control": {
+        "name": "Remote control"
+      },
+      "kids_lock": {
+        "name": "Child lock"
+      },
+      "add_wash_available": {
+        "name": "AddWash available"
+      },
+      "alarm": {
+        "name": "Alarm"
+      }
+    },
+    "button": {
+      "start": {
+        "name": "Start"
+      },
+      "pause": {
+        "name": "Pause"
+      }
+    },
+    "select": {
+      "laundry_out_time": {
+        "name": "Laundry Out reminder"
+      }
+    },
+    "sensor": {
+      "course": {
+        "name": "Programme",
+        "state": {
+          "cotton": "Cotton",
+          "extra_quick": "Extra Quick",
+          "super_eco": "Super Eco",
+          "delicates": "Delicates",
+          "baby_care": "Baby Care",
+          "outdoor": "Outdoor",
+          "dark_garments": "Dark Garments",
+          "drum_clean": "Drum Clean",
+          "rinse_spin": "Rinse + Spin",
+          "wool": "Wool",
+          "bedding": "Bedding",
+          "synthetics": "Synthetics",
+          "eco_cotton": "Eco Cotton",
+          "denim": "Denim",
+          "unknown": "Unknown"
+        }
+      },
+      "state": {
+        "name": "State",
+        "state": {
+          "ready": "Ready",
+          "run": "Running",
+          "pause": "Paused"
+        }
+      },
+      "progress": {
+        "name": "Phase",
+        "state": {
+          "none": "Not started",
+          "wash": "Wash",
+          "rinse": "Rinse",
+          "spin": "Spin",
+          "finish": "Finished"
+        }
+      },
+      "progress_percentage": {
+        "name": "Progress"
+      },
+      "remaining_time": {
+        "name": "Remaining time"
+      },
+      "finish_time": {
+        "name": "Finishes at"
+      },
+      "water_temperature": {
+        "name": "Water temperature"
+      },
+      "spin_level": {
+        "name": "Spin speed"
+      },
+      "rinse_cycles": {
+        "name": "Rinse cycles"
+      }
+    }
+  },
+  "exceptions": {
+    "offline": {
+      "message": "The appliance at {host} is not reachable. It only stays on the Wi-Fi while Remote Control is switched on."
+    },
+    "write_failed": {
+      "message": "The appliance did not apply the change: {details}"
+    }
+  }
+}

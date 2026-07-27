@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*.bak.*
+.DS_Store
+.idea/
+.vscode/
+
+# credentials produced by tools/setup_cert.py and tools/get_token.py
+certs/
+*.pem
+*.key

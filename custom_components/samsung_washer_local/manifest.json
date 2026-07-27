@@ -1,0 +1,14 @@
+{
+  "domain": "samsung_washer_local",
+  "name": "Samsung Washer Local",
+  "codeowners": [
+    "@perseus177"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/perseus177/ha-samsung-washer-local",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/perseus177/ha-samsung-washer-local/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}

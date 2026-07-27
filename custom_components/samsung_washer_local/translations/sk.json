@@ -1,0 +1,144 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Práčka Samsung",
+        "description": "Práčka vyžaduje klientský certifikát podpísaný Samsungovou CA AC14K_M a device token. Oboje vyrobia skripty v adresári tools v repozitári; postup je v README.",
+        "data": {
+          "host": "IP adresa",
+          "token": "Device token",
+          "cert_pem": "Klientský certifikát (PEM, celý chain)",
+          "key_pem": "Klientský privátny kľúč (PEM)",
+          "port": "Port"
+        },
+        "data_description": {
+          "host": "Prideľ práčke fixnú adresu v DHCP serveri, inak ju integrácia po zmene IP stratí.",
+          "token": "10-znakový token, ktorý práčka poslala na listener na porte 8889."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Obnovenie device tokenu",
+        "description": "Práčka na adrese {host} odmietla súčasný token. Vyžiadaj nový a vlož ho sem.",
+        "data": {
+          "token": "Device token"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Práčka nie je dostupná. Na WiFi zostáva iba pokiaľ je zapnuté vzdialené ovládanie — zapni ho (so zavretým bubnom) a skús znova.",
+      "invalid_auth": "Práčka odmietla device token.",
+      "invalid_certificate": "Certifikát alebo privátny kľúč sa nepodarilo použiť. Skontroluj, či sú oba PEM bloky vložené celé."
+    },
+    "abort": {
+      "already_configured": "Táto práčka je už nakonfigurovaná."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Načítavanie stavu",
+        "data": {
+          "poll_interval": "Interval načítavania (sekundy, 0 = vypnuté)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "power": {
+        "name": "Napájanie"
+      },
+      "remote_control": {
+        "name": "Vzdialené ovládanie"
+      },
+      "kids_lock": {
+        "name": "Detská zámka"
+      },
+      "add_wash_available": {
+        "name": "AddWash dostupné"
+      },
+      "alarm": {
+        "name": "Porucha"
+      }
+    },
+    "button": {
+      "start": {
+        "name": "Štart"
+      },
+      "pause": {
+        "name": "Pauza"
+      }
+    },
+    "select": {
+      "laundry_out_time": {
+        "name": "Zvyšná bielizeň"
+      }
+    },
+    "sensor": {
+      "course": {
+        "name": "Prací program",
+        "state": {
+          "cotton": "Bavlna",
+          "extra_quick": "Extra Rýchly",
+          "super_eco": "Super Eco",
+          "delicates": "Jemné tkaniny",
+          "baby_care": "Detské prádlo",
+          "outdoor": "Outdoor",
+          "dark_garments": "Tmavé oblečenie",
+          "drum_clean": "Čistenie bubna",
+          "rinse_spin": "Plákanie a odstreďovanie",
+          "wool": "Vlna",
+          "bedding": "Posteľná bielizeň",
+          "synthetics": "Syntetika",
+          "eco_cotton": "e-Bavlna",
+          "denim": "Denim",
+          "unknown": "Neznámy"
+        }
+      },
+      "state": {
+        "name": "Stav",
+        "state": {
+          "ready": "Pripravená",
+          "run": "Perie",
+          "pause": "Pozastavená"
+        }
+      },
+      "progress": {
+        "name": "Fáza",
+        "state": {
+          "none": "Nezačaté",
+          "wash": "Pranie",
+          "rinse": "Plákanie",
+          "spin": "Odstreďovanie",
+          "finish": "Dopraté"
+        }
+      },
+      "progress_percentage": {
+        "name": "Priebeh"
+      },
+      "remaining_time": {
+        "name": "Zostávajúci čas"
+      },
+      "finish_time": {
+        "name": "Koniec o"
+      },
+      "water_temperature": {
+        "name": "Teplota vody"
+      },
+      "spin_level": {
+        "name": "Odstreďovanie"
+      },
+      "rinse_cycles": {
+        "name": "Počet plákaní"
+      }
+    }
+  },
+  "exceptions": {
+    "offline": {
+      "message": "Práčka na adrese {host} nie je dostupná. Na WiFi zostáva iba pokiaľ je zapnuté vzdialené ovládanie."
+    },
+    "write_failed": {
+      "message": "Práčka zmenu neaplikovala: {details}"
+    }
+  }
+}

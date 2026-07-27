@@ -1,0 +1,17 @@
+This integration was written by an AI model (Anthropic Claude Opus 5).
+
+The local REST API of Samsung washing machines on port 8888 was mapped out for this
+project by probing the appliance directly. The starting point was the observation that
+the appliance's own TLS handshake advertises which client CAs it accepts, and that one
+of them - AC14K_M - is publicly mirrored together with its private key:
+  https://github.com/brayStorm/samsung-appliance-token
+
+Prior work consulted while building this:
+  https://github.com/hmmferreira/samsung-aircon-8888-get-token  (the token callback flow)
+  https://github.com/atxbyea/samsungrac                         (port 8888, air conditioners)
+  https://github.com/QuiteYellow/SmartThings-Local              (the AC14K_M chain, CoAP-DTLS generation)
+  https://github.com/mbillow/localthings                        (CoAP-DTLS generation)
+
+The wash programme code map in const.py is specific to a TP6X_WW6500 (EU, 14-position
+dial) and was calibrated empirically. Other models will report different codes; unknown
+codes are surfaced as "unknown" with the raw value kept in an attribute.
