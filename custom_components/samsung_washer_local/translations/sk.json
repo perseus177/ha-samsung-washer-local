@@ -59,6 +59,12 @@
       },
       "alarm": {
         "name": "Porucha"
+      },
+      "prewash": {
+        "name": "Predpieranie"
+      },
+      "delay_wash": {
+        "name": "Odložený štart"
       }
     },
     "button": {
@@ -67,6 +73,9 @@
       },
       "pause": {
         "name": "Pauza"
+      },
+      "cancel": {
+        "name": "Zrušiť"
       }
     },
     "select": {
@@ -139,6 +148,9 @@
     },
     "write_failed": {
       "message": "Práčka zmenu neaplikovala: {details}"
+    },
+    "cancel_failed": {
+      "message": "Práčke sa nepodarilo zrušiť cyklus: {details}"
     }
   }
 }

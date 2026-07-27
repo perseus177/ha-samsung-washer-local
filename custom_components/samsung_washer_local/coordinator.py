@@ -80,6 +80,24 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
             ) from err
         await self.async_request_refresh()
 
+    async def async_cancel(self) -> None:
+        """Cancel the running cycle, then publish the resulting state."""
+        try:
+            await self.client.async_cancel()
+        except WasherOfflineError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="offline",
+                translation_placeholders={"host": self.host},
+            ) from err
+        except WasherError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="cancel_failed",
+                translation_placeholders={"details": str(err)},
+            ) from err
+        await self.async_request_refresh()
+
     async def async_set_laundry_out_time(self, minutes: str) -> None:
         """Set the Laundry Out reminder, then publish the resulting state."""
         try:

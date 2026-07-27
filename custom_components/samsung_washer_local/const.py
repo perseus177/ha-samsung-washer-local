@@ -45,11 +45,14 @@ COURSE_MAP: dict[str, str] = {
 COURSE_OPTIONS: list[str] = sorted(set(COURSE_MAP.values())) + ["unknown"]
 
 # Operation.state values observed on the appliance. "Run" doubles as resume from
-# "Pause". Cancelling a cycle is deliberately not implemented - no value for it has
-# been verified, and guessing one on a running appliance is not worth the risk.
+# "Pause".
 STATE_READY = "Ready"
 STATE_RUN = "Run"
 STATE_PAUSE = "Pause"
+
+# No value for "cancel the cycle" has been observed on this appliance, so both
+# plausible ones are tried in order and success is judged by it landing in Ready.
+CANCEL_STATES = (STATE_READY, "Stop")
 
 PROGRESS_OPTIONS = ["none", "wash", "rinse", "spin", "finish"]
 STATE_OPTIONS = ["ready", "run", "pause"]

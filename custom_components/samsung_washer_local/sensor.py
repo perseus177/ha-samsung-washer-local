@@ -30,10 +30,14 @@ def _finish_time(state: WasherState) -> datetime | None:
     """Return when the cycle will end, derived from the remaining time.
 
     The appliance only reports a countdown, so the absolute time is computed here.
-    It is deliberately not published while the appliance is not running: a stale
-    countdown would otherwise produce a finish time that keeps sliding.
+    It is published while a cycle is active - running or paused - and withheld when
+    the appliance is merely Ready, where the countdown is only an estimate for the
+    selected programme and would produce a finish time that keeps sliding.
+
+    Paused is included on purpose: dashboards that show a progress bar between the
+    start and the finish time need the value to survive a pause.
     """
-    if state.remaining_minutes is None or state.state != "Run":
+    if state.remaining_minutes is None or state.state not in ("Run", "Pause"):
         return None
     return dt_util.utcnow() + timedelta(minutes=state.remaining_minutes)
 
@@ -143,8 +147,25 @@ class WasherSensor(SamsungWasherEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, str] | None:
-        """Expose the raw course code so an unmapped programme is still usable."""
-        if self.entity_description.key != "course" or self.coordinator.data is None:
+        """Expose raw values that do not fit the sensor's own type."""
+        state = self.coordinator.data
+        if state is None:
             return None
-        code = self.coordinator.data.course_code
-        return {"course_code": code} if code else None
+        key = self.entity_description.key
+        if key == "course":
+            # Keeps an unmapped programme usable on another model.
+            return {"course_code": state.course_code} if state.course_code else None
+        if key == "water_temperature":
+            # The appliance also reports "Cold" and "None", which a temperature sensor
+            # cannot hold; without this the setting would simply vanish from the UI.
+            raw = state.water_temperature_raw
+            return {"raw": raw} if raw is not None else None
+        if key == "spin_level":
+            # Likewise "NoSpin" and "RinseHold" (stop with the water left in).
+            raw = state.spin_level_raw
+            return {"raw": raw} if raw is not None else None
+        if key == "progress":
+            # supportedProgress is dynamic - it reflects which stages the selected
+            # options will actually run.
+            return {"supported_progress": ", ".join(state.supported_progress)}
+        return None

@@ -32,6 +32,8 @@ import tempfile
 from dataclasses import dataclass, field
 from typing import Any
 
+from .const import CANCEL_STATES, COURSE_MAP, STATE_READY
+
 _LOGGER = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = 15
@@ -71,6 +73,16 @@ class WasherState:
     laundry_out_time: str | None = None
     add_wash_available: bool | None = None
     remote_control_enabled: bool | None = None
+    # Both settings can hold named values as well as numbers - "Cold"/"None" for the
+    # temperature, "NoSpin"/"RinseHold" for the spin - which do not fit a numeric
+    # sensor. The raw string is kept so nothing is lost.
+    water_temperature_raw: str | None = None
+    spin_level_raw: str | None = None
+    add_wash_available_raw: str | None = None
+    # Not a static capability list: the appliance adds and removes entries as options
+    # are selected on the panel, which is the only way "Prewash" and "Delaywash"
+    # become visible from outside.
+    supported_progress: list[str] = field(default_factory=list)
     alarms: list[Any] = field(default_factory=list)
     model_id: str | None = None
     serial_number: str | None = None
@@ -269,8 +281,6 @@ class SamsungWasherClient:
         add_wash = _option(options, "AddWashAvailable_")
         progress = operation.get("progress")
 
-        from .const import COURSE_MAP  # local import keeps const free of api imports
-
         return WasherState(
             state=operation.get("state"),
             progress=progress.lower() if isinstance(progress, str) else None,
@@ -287,18 +297,20 @@ class SamsungWasherClient:
             add_wash_available=None if add_wash is None else add_wash != "0",
             remote_control_enabled=configuration.get("remoteControlEnabled"),
             alarms=alarms if isinstance(alarms, list) else [],
+            water_temperature_raw=washer.get("waterTemperature"),
+            spin_level_raw=washer.get("spinLevel"),
+            add_wash_available_raw=add_wash,
+            supported_progress=[
+                str(stage) for stage in operation.get("supportedProgress", [])
+            ],
         )
 
     async def async_read_information(self) -> dict[str, Any]:
         """Read the identity of the appliance (model, serial, firmware)."""
         return (await self._async_get("/devices/0/information")).get("Information", {})
 
-    async def async_set_operation_state(self, state: str) -> None:
-        """Start, pause or resume the programme selected on the dial.
-
-        The write is verified by reading the state back, because the appliance
-        answers 204 whether or not it applied anything.
-        """
+    async def _async_write_state(self, state: str) -> str | None:
+        """Write Operation.state and return what the appliance reports afterwards."""
         status, body = await self._async_request(
             "PUT", "/devices/0/operation", {"Operation": {"state": state}}
         )
@@ -306,10 +318,37 @@ class SamsungWasherClient:
             raise WasherError(f"setting state={state} returned {status}: {body}")
         await asyncio.sleep(3)
         current = (await self._async_get("/devices/0/operation")).get("Operation", {})
-        if current.get("state") != state:
+        return current.get("state")
+
+    async def async_set_operation_state(self, state: str) -> None:
+        """Start, pause or resume the programme selected on the dial.
+
+        The write is verified by reading the state back, because the appliance
+        answers 204 whether or not it applied anything.
+        """
+        reported = await self._async_write_state(state)
+        if reported != state:
             raise WasherError(
-                f"the appliance ignored state={state} (it reports {current.get('state')})"
+                f"the appliance ignored state={state} (it reports {reported})"
             )
+
+    async def async_cancel(self) -> None:
+        """Cancel the running cycle.
+
+        Unlike start and pause, the value that cancels a cycle has not been observed
+        on this appliance - only Ready, Run and Pause are known. Both plausible ones
+        are therefore tried in turn, and success is judged by the appliance ending up
+        in Ready rather than by it echoing back what was written (a cancel naturally
+        lands in Ready, so comparing against the written value would report a false
+        failure).
+        """
+        errors: list[str] = []
+        for candidate in CANCEL_STATES:
+            reported = await self._async_write_state(candidate)
+            if reported == STATE_READY:
+                return
+            errors.append(f"state={candidate} left it in {reported}")
+        raise WasherError("the appliance did not cancel the cycle: " + "; ".join(errors))
 
     async def async_set_laundry_out_time(self, minutes: str) -> None:
         """Set the Laundry Out reminder interval, verifying it afterwards."""

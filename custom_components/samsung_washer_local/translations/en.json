@@ -59,6 +59,12 @@
       },
       "alarm": {
         "name": "Alarm"
+      },
+      "prewash": {
+        "name": "Prewash"
+      },
+      "delay_wash": {
+        "name": "Delayed start"
       }
     },
     "button": {
@@ -67,6 +73,9 @@
       },
       "pause": {
         "name": "Pause"
+      },
+      "cancel": {
+        "name": "Cancel"
       }
     },
     "select": {
@@ -139,6 +148,9 @@
     },
     "write_failed": {
       "message": "The appliance did not apply the change: {details}"
+    },
+    "cancel_failed": {
+      "message": "The appliance did not cancel the cycle: {details}"
     }
   }
 }
