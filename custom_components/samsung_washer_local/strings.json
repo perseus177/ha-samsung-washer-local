@@ -65,6 +65,12 @@
       },
       "delay_wash": {
         "name": "Delayed start"
+      },
+      "add_wash_set": {
+        "name": "AddWash"
+      },
+      "add_wash_indicator": {
+        "name": "AddWash indicator"
       }
     },
     "button": {
@@ -139,6 +145,12 @@
       },
       "rinse_cycles": {
         "name": "Rinse cycles"
+      },
+      "diagnosis": {
+        "name": "Diagnosis"
+      },
+      "energy_counter": {
+        "name": "Consumption counter"
       }
     }
   },

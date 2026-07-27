@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from datetime import timedelta
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -17,7 +19,7 @@ from .api import (
     WasherOfflineError,
     WasherState,
 )
-from .const import DOMAIN
+from .const import DOMAIN, ENERGY_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,6 +46,11 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
         self.client = client
         self.host = host
         self.information: dict[str, str] = {}
+        # The usage database is a ~21 kB base64 payload for a counter that only moves
+        # once an hour, so it is fetched on its own slow cadence and carried over
+        # between polls rather than being pulled on every one.
+        self._energy: dict[str, Any] = {}
+        self._energy_read: float = 0.0
 
     async def _async_update_data(self) -> WasherState | None:
         """Read the state.
@@ -53,7 +60,8 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
         level and merely makes the entities unavailable.
         """
         try:
-            return await self.client.async_read_state()
+            state = await self.client.async_read_state()
+            return replace(state, **await self._async_energy())
         except WasherAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
         except WasherOfflineError as err:
@@ -61,6 +69,29 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
             raise UpdateFailed(str(err)) from err
         except WasherError as err:
             raise UpdateFailed(str(err)) from err
+
+    async def _async_energy(self) -> dict[str, Any]:
+        """Return the energy fields, refreshing them at most every 15 minutes.
+
+        A failure here is never fatal - the counter is a nice-to-have and the last
+        known values are kept - so it is logged at debug level and swallowed.
+        """
+        now = self.hass.loop.time()
+        if not self._energy or now - self._energy_read > ENERGY_INTERVAL:
+            try:
+                usage = await self.client.async_read_energy()
+            except WasherError as err:
+                _LOGGER.debug("Could not read the usage database: %s", err)
+            else:
+                self._energy_read = now
+                if usage:
+                    self._energy = {
+                        "energy_counter": usage["counter"],
+                        "energy_last_record": usage["last_record"],
+                        "energy_first_record": usage["first_record"],
+                        "energy_records": usage["records"],
+                    }
+        return self._energy
 
     async def async_set_operation_state(self, state: str) -> None:
         """Start, pause or resume, then publish the resulting state."""

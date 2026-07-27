@@ -23,10 +23,12 @@ tiny parser below simply ignores header lines it cannot make sense of.
 from __future__ import annotations
 
 import asyncio
+import base64
 import contextlib
 import json
 import logging
 import os
+import sqlite3
 import ssl
 import tempfile
 from dataclasses import dataclass, field
@@ -87,6 +89,25 @@ class WasherState:
     model_id: str | None = None
     serial_number: str | None = None
     software_version: str | None = None
+    # Remaining Mode.options tokens. AddWashSet is the AddWash feature's own on/off
+    # (the naming mirrors Samsung's "<Feature>Set" / "<Feature>AvailableSet" pairs);
+    # AddWashIndicator is the blinking panel lamp and flips on its own every few
+    # seconds, so it is offered only as a disabled-by-default diagnostic.
+    add_wash_set: str | None = None
+    add_wash_indicator: str | None = None
+    diagnosis: str | None = None
+    # Every token, so nothing the appliance reports is lost even where the meaning
+    # is unknown (EnergyKW, NoCheck_SC, DeviceType, QuickWash, TimeSync, UsagesDB).
+    mode_options: list[str] = field(default_factory=list)
+    supported_options: list[str] = field(default_factory=list)
+    supported_water_temperature: list[str] = field(default_factory=list)
+    supported_spin_level: list[str] = field(default_factory=list)
+    supported_rinse_cycles: list[str] = field(default_factory=list)
+    # From /files/usage.db - see async_read_energy for why there is no unit.
+    energy_counter: int | None = None
+    energy_last_record: str | None = None
+    energy_first_record: str | None = None
+    energy_records: int | None = None
 
 
 def _build_ssl_context(cert_pem: str, key_pem: str) -> ssl.SSLContext:
@@ -113,6 +134,49 @@ def _build_ssl_context(cert_pem: str, key_pem: str) -> ssl.SSLContext:
         os.chmod(key_path, 0o600)
         context.load_cert_chain(cert_path, key_path)
     return context
+
+
+def _parse_usage_db(encoded: str) -> dict[str, Any] | None:
+    """Decode the base64 SQLite database and return the newest counter row.
+
+    Blocking (base64 + sqlite + a temp file) - always call from an executor. A temp
+    file is used rather than ``Connection.deserialize`` so this also works on Python
+    releases that do not have it.
+    """
+    try:
+        blob = base64.b64decode(encoded, validate=False)
+    except (ValueError, TypeError):
+        return None
+    if not blob.startswith(b"SQLite format 3"):
+        return None
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "usage.sqlite")
+        with open(path, "wb") as handle:
+            handle.write(blob)
+        try:
+            connection = sqlite3.connect(path)
+            try:
+                cursor = connection.execute(
+                    "SELECT date, power_usage, COUNT(*), MIN(date) FROM power_usage_table"
+                    " WHERE date = (SELECT MAX(date) FROM power_usage_table)"
+                )
+                row = cursor.fetchone()
+                cursor = connection.execute(
+                    "SELECT COUNT(*), MIN(date) FROM power_usage_table"
+                )
+                total, first = cursor.fetchone()
+            finally:
+                connection.close()
+        except sqlite3.Error:
+            return None
+    if not row or row[0] is None:
+        return None
+    return {
+        "counter": row[1],
+        "last_record": str(row[0]),
+        "first_record": str(first),
+        "records": total,
+    }
 
 
 def _parse_minutes(value: str | None) -> int | None:
@@ -267,14 +331,26 @@ class SamsungWasherClient:
         return body
 
     async def async_read_state(self) -> WasherState:
-        """Read every resource that carries state."""
-        operation = (await self._async_get("/devices/0/operation")).get("Operation", {})
-        washer = (await self._async_get("/devices/0/washer")).get("Washer", {})
-        mode = (await self._async_get("/devices/0/mode")).get("Mode", {})
+        """Read every resource that carries state.
+
+        Two requests, not one per resource: ``/devices`` embeds Operation, Washer,
+        Mode, Alarms and Diagnosis in a single response, which matters on an appliance
+        whose Wi-Fi drops at the slightest excuse. Configuration and Information are
+        the exception - ``/devices`` only carries links to them - so
+        remoteControlEnabled still needs its own request.
+        """
+        devices = (await self._async_get("/devices")).get("Devices") or []
+        if not devices:
+            raise WasherError("/devices returned no device")
+        device = devices[0]
+        operation = device.get("Operation", {})
+        washer = device.get("Washer", {})
+        mode = device.get("Mode", {})
+        alarms = device.get("Alarms", [])
+        diagnosis = device.get("Diagnosis", {})
         configuration = (await self._async_get("/devices/0/configuration")).get(
             "Configuration", {}
         )
-        alarms = (await self._async_get("/devices/0/alarms")).get("Alarms", [])
 
         options: list[str] = mode.get("options", [])
         course_code = _option(options, "Course_")
@@ -303,11 +379,39 @@ class SamsungWasherClient:
             supported_progress=[
                 str(stage) for stage in operation.get("supportedProgress", [])
             ],
+            add_wash_set=_option(options, "AddWashSet_"),
+            add_wash_indicator=_option(options, "AddWashIndicator_"),
+            diagnosis=diagnosis.get("diagnosisStart"),
+            mode_options=list(options),
+            supported_options=list(mode.get("supportedOptions", [])),
+            supported_water_temperature=list(washer.get("supportedWaterTemperature", [])),
+            supported_spin_level=list(washer.get("supportedSpinLevel", [])),
+            supported_rinse_cycles=list(washer.get("supportedRinseCycles", [])),
         )
 
     async def async_read_information(self) -> dict[str, Any]:
         """Read the identity of the appliance (model, serial, firmware)."""
         return (await self._async_get("/devices/0/information")).get("Information", {})
+
+    async def async_read_energy(self) -> dict[str, Any] | None:
+        """Read the appliance's own consumption counter.
+
+        ``EnergyConsumption`` only carries a file path; the numbers live in
+        /files/usage.db, a base64-encoded SQLite database with one hourly row in
+        ``power_usage_table(date, power_usage, running_time)``. ``date`` is
+        YYYYMMDDHH, ``power_usage`` is a monotonically increasing counter and
+        ``running_time`` is unused (always 0) on this model.
+
+        The unit of ``power_usage`` is deliberately not asserted anywhere: comparing
+        a day's increase against a metering plug on the same appliance came out at
+        roughly 7 Wh per count, which is not a round number, and the snapshot appears
+        to lag behind the live cycle. It is therefore surfaced as a bare counter.
+        """
+        status, body = await self._async_request("GET", "/files/usage.db")
+        if status != 200 or not isinstance(body, str):
+            raise WasherError(f"reading the usage database returned {status}")
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, _parse_usage_db, body)
 
     async def _async_write_state(self, state: str) -> str | None:
         """Write Operation.state and return what the appliance reports afterwards."""

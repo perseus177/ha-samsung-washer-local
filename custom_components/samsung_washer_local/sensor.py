@@ -12,7 +12,13 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import PERCENTAGE, REVOLUTIONS_PER_MINUTE, UnitOfTemperature, UnitOfTime
+from homeassistant.const import (
+    PERCENTAGE,
+    REVOLUTIONS_PER_MINUTE,
+    EntityCategory,
+    UnitOfTemperature,
+    UnitOfTime,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
@@ -40,6 +46,20 @@ def _finish_time(state: WasherState) -> datetime | None:
     if state.remaining_minutes is None or state.state not in ("Run", "Pause"):
         return None
     return dt_util.utcnow() + timedelta(minutes=state.remaining_minutes)
+
+
+def _attrs(**values: object) -> dict[str, str] | None:
+    """Build an attribute dict, dropping empties and joining lists.
+
+    Keeps unset values out of the state machine rather than publishing a wall of
+    None/"" attributes while the appliance has not been read yet.
+    """
+    out: dict[str, str] = {}
+    for name, value in values.items():
+        if value in (None, "", [], ()):
+            continue
+        out[name] = ", ".join(str(v) for v in value) if isinstance(value, list) else str(value)
+    return out or None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -109,6 +129,24 @@ SENSORS: tuple[WasherSensorDescription, ...] = (
         translation_key="rinse_cycles",
         value_fn=lambda state: state.rinse_cycles,
     ),
+    WasherSensorDescription(
+        key="diagnosis",
+        translation_key="diagnosis",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda state: state.diagnosis,
+    ),
+    # The appliance's own consumption counter, out of /files/usage.db. No unit and no
+    # device_class on purpose: the counter's scale could not be pinned down (a day's
+    # rise measured against a metering plug on the same appliance came out at roughly
+    # 7 Wh per count, and the snapshot lags the live cycle), so calling it kWh would
+    # feed a plausible-looking wrong number into the energy dashboard.
+    WasherSensorDescription(
+        key="energy_counter",
+        translation_key="energy_counter",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda state: state.energy_counter,
+    ),
 )
 
 
@@ -158,14 +196,31 @@ class WasherSensor(SamsungWasherEntity, SensorEntity):
         if key == "water_temperature":
             # The appliance also reports "Cold" and "None", which a temperature sensor
             # cannot hold; without this the setting would simply vanish from the UI.
-            raw = state.water_temperature_raw
-            return {"raw": raw} if raw is not None else None
+            return _attrs(
+                raw=state.water_temperature_raw,
+                supported=state.supported_water_temperature,
+            )
         if key == "spin_level":
             # Likewise "NoSpin" and "RinseHold" (stop with the water left in).
-            raw = state.spin_level_raw
-            return {"raw": raw} if raw is not None else None
+            return _attrs(raw=state.spin_level_raw, supported=state.supported_spin_level)
+        if key == "rinse_cycles":
+            return _attrs(supported=state.supported_rinse_cycles)
         if key == "progress":
             # supportedProgress is dynamic - it reflects which stages the selected
             # options will actually run.
-            return {"supported_progress": ", ".join(state.supported_progress)}
+            return _attrs(supported_progress=state.supported_progress)
+        if key == "diagnosis":
+            # Everything else the appliance reports, including the tokens whose meaning
+            # is unknown (EnergyKW, NoCheck_SC, DeviceType, QuickWash, TimeSync,
+            # UsagesDB) and the per-course availability bitmap in supportedOptions.
+            return _attrs(
+                mode_options=state.mode_options,
+                supported_options=state.supported_options,
+            )
+        if key == "energy_counter":
+            return _attrs(
+                last_record=state.energy_last_record,
+                first_record=state.energy_first_record,
+                records=state.energy_records,
+            )
         return None

@@ -18,6 +18,10 @@ DEFAULT_PORT = 8888
 # to keep the Wi-Fi module awake anyway.
 DEFAULT_POLL_INTERVAL = 30
 
+# The usage database holds an hourly counter, so re-reading it more often than
+# this only wastes a 21 kB transfer on an appliance with a fragile Wi-Fi link.
+ENERGY_INTERVAL = 900
+
 MANUFACTURER = "Samsung"
 
 # Wash programmes are identified by a one-byte course code that is specific to the

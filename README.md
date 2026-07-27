@@ -108,8 +108,48 @@ and restart Home Assistant.
 | `sensor` Finishes at | Timestamp, derived from the remaining time; only while running |
 | `sensor` Water temperature, Spin speed, Rinse cycles | Read-only |
 | `binary_sensor` Power, Remote control, Child lock, AddWash available, Alarm | Alarm carries the appliance's error codes in an attribute |
-| `button` Start, Pause | Start also resumes from pause |
+| `binary_sensor` Prewash, Delayed start | Read from `supportedProgress`, see below |
+| `binary_sensor` AddWash | The feature's own on/off (`AddWashSet`) |
+| `binary_sensor` AddWash indicator | The blinking panel lamp — **disabled by default**, it flips every few seconds on its own |
+| `sensor` Diagnosis | `Diagnosis.diagnosisStart`; also carries every raw `Mode.options` token as attributes |
+| `sensor` Consumption counter | The appliance's own counter, **no unit** — see below |
+| `button` Start, Pause, Cancel | Start also resumes from pause |
 | `select` Laundry Out reminder | `0` / `30` / `60` / `90` minutes |
+
+Everything the appliance exposes is covered: `resources` lists exactly eight
+(`Alarms`, `Configuration`, `Diagnosis`, `EnergyConsumption`, `Information`, `Mode`,
+`Operation`, `Washer`) and every field of each is either an entity or an attribute.
+Values that do not fit their sensor's type — `Cold`/`None` for the temperature,
+`NoSpin`/`RinseHold` for the spin — are kept in a `raw` attribute so nothing is lost.
+
+### Which panel options are readable
+
+`Operation.supportedProgress` is **not** a static capability list: the appliance adds
+and removes entries as options are selected, which is the only way some of them become
+visible. `Prewash` and `Delaywash` appear when those options are chosen; `Rinse`
+disappears when the rinse count is 0 and `Spin` when `RinseHold` is selected.
+
+**Bubble Soak, stain wash and the intensive option are not readable on this
+generation.** Newer appliances carry `BubbleSoak_On`/`_Off` tokens in the options
+array; this firmware never reports them, and cycling those buttons changes nothing in
+the API except the remaining-time estimate.
+
+### The consumption counter has no unit
+
+`EnergyConsumption` only holds a file path. The numbers are in `/files/usage.db`, a
+base64-encoded SQLite database with one hourly row in
+`power_usage_table(date, power_usage, running_time)` — `date` is `YYYYMMDDHH`,
+`power_usage` is a monotonically increasing counter, `running_time` is unused.
+
+The counter is exposed **without a unit or device class on purpose.** Its scale could
+not be established: a day's rise measured against a metering plug on the same
+appliance came out at roughly 7 Wh per count, which is not a round number, and the
+database snapshot lags the running cycle. Publishing it as kWh would feed a
+plausible-looking wrong number into the energy dashboard. If you want real energy
+figures, meter the socket.
+
+The database is re-read every 15 minutes rather than on every poll — it is a 21 kB
+transfer for a counter that moves once an hour.
 
 Controls stay available while the appliance is offline and report a clear error when
 pressed, rather than disappearing — the machine is off the network most of the time it

@@ -10,6 +10,7 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -80,6 +81,27 @@ BINARY_SENSORS: tuple[WasherBinarySensorDescription, ...] = (
         key="delay_wash",
         translation_key="delay_wash",
         value_fn=lambda state: _has_stage(state, "delaywash"),
+    ),
+    WasherBinarySensorDescription(
+        key="add_wash_set",
+        translation_key="add_wash_set",
+        value_fn=lambda state: (
+            None if state.add_wash_set is None else state.add_wash_set != "0"
+        ),
+    ),
+    # Disabled by default deliberately: this is the blinking panel lamp, observed
+    # flipping thirty times in six minutes with nobody touching the appliance. Enabling
+    # it fills the recorder with state changes that mean nothing.
+    WasherBinarySensorDescription(
+        key="add_wash_indicator",
+        translation_key="add_wash_indicator",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda state: (
+            None
+            if state.add_wash_indicator is None
+            else state.add_wash_indicator.lower() == "on"
+        ),
     ),
 )
 

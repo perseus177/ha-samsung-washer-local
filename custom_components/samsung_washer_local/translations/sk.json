@@ -65,6 +65,12 @@
       },
       "delay_wash": {
         "name": "Odložený štart"
+      },
+      "add_wash_set": {
+        "name": "AddWash"
+      },
+      "add_wash_indicator": {
+        "name": "AddWash kontrolka"
       }
     },
     "button": {
@@ -139,6 +145,12 @@
       },
       "rinse_cycles": {
         "name": "Počet plákaní"
+      },
+      "diagnosis": {
+        "name": "Diagnostika"
+      },
+      "energy_counter": {
+        "name": "Počítadlo spotreby"
       }
     }
   },
