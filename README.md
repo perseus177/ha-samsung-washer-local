@@ -19,11 +19,21 @@ cloud being involved.
 | Read state, programme, progress, parameters, error codes, identity | ✅ |
 | Start / pause / resume the programme selected on the dial | ✅ |
 | Set the Laundry Out reminder (0/30/60/90 min) | ✅ |
+| Cancel a running cycle | ⚠️ implemented, unverified — see below |
 | **Select the wash programme remotely** | ❌ not possible |
 | Set temperature / spin / rinse remotely | ❌ not possible |
-| Cancel a running cycle | ❌ not implemented |
 
-Programme selection is genuinely unavailable, not merely unimplemented. The appliance
+The Cancel button exists and is wired up, but it has never been confirmed against a
+running cycle. The reason it is not simply a third state to write: `Operation.state` has
+only ever been observed to hold `Ready`, `Run` and `Pause`, and no value for "cancel"
+turned up anywhere in the appliance's own vocabulary. The button therefore writes `Ready`
+and then, if that changes nothing, `Stop`, and judges the outcome by the appliance ending
+up in `Ready` rather than by it echoing back what was written — a cancel naturally lands
+in `Ready`, so comparing against the written value would report a false failure. If it
+does not work on your appliance you will get a clear error saying what each attempt left
+it in; please report that.
+
+Programme selection, by contrast, is genuinely unavailable rather than unimplemented. The appliance
 accepts a write to `Course_XX` with `204 No Content` and then discards it; the official
 app changes the programme over Samsung's private cloud channel
 (`ocfclientcon…samsungiotcloud.com`), which a local client cannot reach. The same is

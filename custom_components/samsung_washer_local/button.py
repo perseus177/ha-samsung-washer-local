@@ -1,4 +1,4 @@
-"""Buttons for Samsung Washer Local - start, pause and resume.
+"""Buttons for Samsung Washer Local - start, pause, resume and cancel.
 
 The programme itself cannot be selected remotely: the appliance accepts a write to
 Course_XX and silently discards it (Samsung keeps programme selection on its private
