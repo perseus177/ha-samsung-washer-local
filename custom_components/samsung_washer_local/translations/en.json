@@ -90,7 +90,7 @@
     },
     "select": {
       "laundry_out_time": {
-        "name": "Laundry Out reminder"
+        "name": "5. Laundry Out reminder"
       },
       "selected_programme": {
         "name": "1. Programme",

@@ -48,10 +48,17 @@ async def async_setup_entry(
 
 
 class WasherLaundryOutSelect(SamsungWasherControlEntity, SelectEntity):
-    """The Laundry Out reminder interval in minutes, 0 meaning off."""
+    """The Laundry Out reminder interval in minutes, 0 meaning off.
+
+    Numbered and categorised with the four above so the five read as the sequence the app
+    presents - it is the last thing chosen before starting a wash. It differs from them in
+    one way worth knowing: this one writes to the appliance as soon as it is changed, since
+    the reminder is a setting the appliance accepts on its own, rather than part of a start.
+    """
 
     _attr_translation_key = "laundry_out_time"
     _attr_options = LAUNDRY_OUT_VALUES
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, coordinator: SamsungWasherCoordinator) -> None:
         """Initialise the select."""

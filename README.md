@@ -33,11 +33,14 @@ entities, so no YAML is needed for the common case:
 |---|---|
 | `select` **1. Programme** | The programmes *this* appliance advertises. Starts on whatever the dial says, so it means something untouched. |
 | `select` **2. Water temperature**, **3. Rinse cycles**, **4. Spin speed** | **Only what the chosen programme allows.** Pick Drum Clean and the temperature list becomes `60` alone; pick Rinse + Spin and the temperature select goes unavailable, because that programme has none. |
-| `button` Start selected programme | Sends the lot. |
+| `select` **5. Laundry Out reminder** | The one that writes straight away, since the appliance takes this reminder on its own. Numbered with the rest because it is the last thing chosen before a wash. |
+| `button` Start selected programme | Sends 1–4. |
 
 The numbers are there because Home Assistant lists entities alphabetically and there is no
 ordering to set; without them the spin speed sorts first and the programme third, which reads
-backwards for something meant to be filled in from the top.
+backwards for something meant to be filled in from the top. All five share the configuration
+category for the same reason: entities in different categories are listed in separate blocks,
+so numbering alone would not have put them together.
 
 Switching programme re-narrows the three lists and drops a value the new programme does not
 allow: 60 °C chosen under Cotton does not survive a switch to Super Eco, which is cold only —
@@ -207,7 +210,7 @@ and restart Home Assistant.
 | `sensor` Diagnosis | `Diagnosis.diagnosisStart`; also carries every raw `Mode.options` token as attributes |
 | `sensor` Consumption counter | The appliance's own counter, **no unit** — see below |
 | `button` Start, Pause, Cancel | Start also resumes from pause |
-| `select` Laundry Out reminder | `0` / `30` / `60` / `90` minutes — writes straight to the appliance |
+| `select` 5. Laundry Out reminder | `0` / `30` / `60` / `90` minutes — writes straight to the appliance |
 | `select` Programme / temperature / rinse / spin to start | The choice for the next start; see above. Writes nothing on its own |
 | `button` Start selected programme | Starts that choice |
 | `switch` AddWash | Writable. A three-bit mask underneath (`0`–`7`), so the raw value is kept in an attribute; on writes `7` |
