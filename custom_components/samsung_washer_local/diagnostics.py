@@ -29,6 +29,10 @@ async def async_get_config_entry_diagnostics(
         },
         "options": dict(entry.options),
         "information": coordinator.information,
+        # Both, because they mean different things here: the appliance being away is not
+        # counted as a failed update, so last_update_success can be true while the
+        # appliance is unreachable and the entities are unavailable.
         "last_update_success": coordinator.last_update_success,
+        "reachable": coordinator.reachable,
         "state": asdict(coordinator.data) if coordinator.data else None,
     }

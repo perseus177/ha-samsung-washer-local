@@ -56,6 +56,11 @@ is simply "on the network"; it joins and leaves depending on what it is doing:
 | **Running a cycle** | **Yes, for the whole cycle** — Remote Control is *not* needed. |
 
 So entities going unavailable between washes is normal, and it is not a signal problem.
+The integration treats it that way too: an appliance that stops answering is **recorded
+once, as a warning** — not as an error, and not again on every following poll — and the
+entities simply go unavailable until it answers again. Only a response that cannot be
+explained by the appliance being away is reported as an error.
+
 Two consequences worth knowing:
 
 - **For continuous monitoring, switch Remote Control on** at the appliance (the door has

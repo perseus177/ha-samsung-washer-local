@@ -14,6 +14,22 @@ class SamsungWasherEntity(CoordinatorEntity[SamsungWasherCoordinator]):
 
     _attr_has_entity_name = True
 
+    @property
+    def available(self) -> bool:
+        """Return whether the appliance answered and there is something to show.
+
+        Availability cannot come from last_update_success alone here: the coordinator
+        treats the appliance being away as an expected outcome rather than a failed
+        update, so that flag stays true while the appliance is off the network. The
+        reachable flag carries that instead. The data check covers the window before the
+        first successful poll, where there is genuinely nothing to report yet.
+        """
+        return (
+            super().available
+            and self.coordinator.reachable
+            and self.coordinator.data is not None
+        )
+
     def __init__(self, coordinator: SamsungWasherCoordinator, key: str) -> None:
         """Initialise the entity."""
         super().__init__(coordinator)

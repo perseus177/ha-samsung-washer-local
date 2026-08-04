@@ -47,6 +47,10 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
         self.client = client
         self.host = host
         self.information: dict[str, str] = {}
+        # Whether the appliance answered the last poll. Kept separately from
+        # last_update_success because the appliance being away is not a failed update -
+        # see _async_update_data - and the entities take their availability from this.
+        self.reachable = True
         # The usage database is a ~21 kB base64 payload for a counter that only moves
         # once an hour, so it is fetched on its own slow cadence and carried over
         # between polls rather than being pulled on every one.
@@ -56,28 +60,41 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
     async def _async_update_data(self) -> WasherState | None:
         """Read the state.
 
-        An unreachable appliance is expected behaviour - between washes it is often
-        switched off entirely, and even switched on it leaves the network within minutes
-        of going idle unless Remote Control is on - so it is logged at debug level and
-        merely makes the entities unavailable. An appliance that refuses to
-        serve while its Wi-Fi control function is off is the same kind of everyday
-        condition, only self-reported; both make the entities unavailable, which is
-        honest, but the message has to say what the owner can do about it rather than
-        quote a 403 body.
+        An absent appliance is expected behaviour, not a failure: between washes it is
+        often switched off entirely, and even switched on it leaves the network within
+        minutes of going idle unless Remote Control is on. An appliance that refuses to
+        serve while its Wi-Fi control function is off (403 SHE-001) is the same everyday
+        condition, only self-reported.
+
+        Neither is raised as UpdateFailed, because the coordinator logs that at ERROR
+        level, and an appliance behaving exactly as designed should not read as a fault.
+        The appliance is marked unreachable instead - which is what makes the entities
+        unavailable, see SamsungWasherEntity.available - and the last snapshot is kept so
+        nothing is thrown away while it is gone. The disappearance is still recorded,
+        once, at warning level: knowing when the appliance came and went is genuinely
+        useful, while repeating it for every subsequent poll is not.
+
+        Anything that cannot be explained this way is a real failure and is raised, so it
+        keeps the coordinator's own error handling.
         """
         try:
             state = await self.client.async_read_state()
-            return replace(state, **await self._async_energy())
         except WasherAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
-        except WasherControlDisabledError as err:
-            _LOGGER.debug("%s has its Wi-Fi control switched off: %s", self.host, err)
-            raise UpdateFailed(str(err)) from err
         except WasherOfflineError as err:
-            _LOGGER.debug("%s is offline: %s", self.host, err)
-            raise UpdateFailed(str(err)) from err
+            # WasherControlDisabledError is a subclass of it, hence the single branch.
+            if self.reachable:
+                _LOGGER.warning("%s is not answering: %s", self.host, err)
+                self.reachable = False
+            else:
+                _LOGGER.debug("%s is still not answering: %s", self.host, err)
+            return self.data
         except WasherError as err:
             raise UpdateFailed(str(err)) from err
+        if not self.reachable:
+            _LOGGER.info("%s is answering again", self.host)
+            self.reachable = True
+        return replace(state, **await self._async_energy())
 
     async def _async_energy(self) -> dict[str, Any]:
         """Return the energy fields, refreshing them at most every 15 minutes.
