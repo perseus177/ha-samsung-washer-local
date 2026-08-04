@@ -14,6 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -44,6 +45,11 @@ BUTTONS: tuple[WasherButtonDescription, ...] = (
     WasherButtonDescription(
         key="start_selected",
         translation_key="start_selected",
+        # Categorised with the selects it belongs to, not with the plain controls. It is an
+        # action, so this is not what the category is for - but it is the last step of the
+        # sequence those five make, and entities are listed per category, so keeping it in
+        # Controls would have left the numbering pointing at nothing.
+        entity_category=EntityCategory.CONFIG,
         target_state=None,
         starts_selection=True,
     ),
