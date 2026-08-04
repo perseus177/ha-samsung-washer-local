@@ -84,15 +84,19 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
         except WasherOfflineError as err:
             # WasherControlDisabledError is a subclass of it, hence the single branch.
             if self.reachable:
-                _LOGGER.warning("%s is not answering: %s", self.host, err)
+                _LOGGER.warning(
+                    "The appliance at %s is not answering: %s", self.host, err
+                )
                 self.reachable = False
             else:
-                _LOGGER.debug("%s is still not answering: %s", self.host, err)
+                _LOGGER.debug(
+                    "The appliance at %s is still not answering: %s", self.host, err
+                )
             return self.data
         except WasherError as err:
             raise UpdateFailed(str(err)) from err
         if not self.reachable:
-            _LOGGER.info("%s is answering again", self.host)
+            _LOGGER.info("The appliance at %s is answering again", self.host)
             self.reachable = True
         return replace(state, **await self._async_energy())
 

@@ -319,10 +319,12 @@ class SamsungWasherClient:
         try:
             async with self._lock, asyncio.timeout(REQUEST_TIMEOUT):
                 status, raw = await self._async_roundtrip(method, path, payload)
+        # These carry the reason only, not the host: every caller already knows which
+        # appliance it asked, and naming it here made the log line say it twice.
         except (TimeoutError, asyncio.IncompleteReadError) as err:
-            raise WasherOfflineError(f"{self._host} timed out") from err
+            raise WasherOfflineError("it timed out") from err
         except (OSError, ConnectionError) as err:
-            raise WasherOfflineError(f"{self._host} is not reachable: {err}") from err
+            raise WasherOfflineError(f"it is not reachable: {err}") from err
         except ssl.SSLError as err:
             raise WasherAuthError(f"the TLS handshake failed: {err}") from err
 
@@ -345,9 +347,9 @@ class SamsungWasherClient:
             description = body.get("errorDescription", "")
             if body.get("errorCode") == "SHE-001" or "WiFi is disabled" in description:
                 raise WasherControlDisabledError(
-                    "the appliance is refusing requests because its Wi-Fi control"
-                    " function is switched off - switch Remote Control (Smart Control)"
-                    " on at the panel, with the door closed"
+                    "it is refusing requests because its Wi-Fi control function is"
+                    " switched off - switch Remote Control (Smart Control) on at the"
+                    " panel, with the door closed"
                 )
         if status == 400 and isinstance(body, str) and "certificate" in body:
             raise WasherAuthError("the client certificate was rejected")
