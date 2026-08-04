@@ -409,6 +409,16 @@ class SamsungWasherClient:
             description = body.get("errorDescription", "")
             if "Token" in description or status == 401:
                 raise WasherAuthError(description or "token is not valid")
+        if status >= 500:
+            # Seen once right after Remote Control was switched on at the panel:
+            # 500 {"errorCode": "0", "errorDescription": "InvokeGetDeviceListFunc fail"},
+            # then it answered normally again. That is the appliance's API still coming up,
+            # which belongs in the everyday "not answering yet" family rather than being
+            # logged as an error - it recovers on the next poll.
+            description = body.get("errorDescription") if isinstance(body, dict) else None
+            raise WasherOfflineError(
+                f"it is not ready yet: {description or f'{status} from the appliance'}"
+            )
         if status == 403 and isinstance(body, dict):
             # SHE-001: "current function of WiFi is disabled, please enable the function
             # for controlling". Recognised here, before the callers turn a non-200 into

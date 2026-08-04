@@ -47,14 +47,15 @@ BINARY_SENSORS: tuple[WasherBinarySensorDescription, ...] = (
         device_class=BinarySensorDeviceClass.POWER,
         value_fn=lambda state: None if state.power is None else state.power == "On",
     ),
-    # Numbered 0 and grouped with the configuration entities, because it is the condition
-    # for all of them: while this is off the appliance takes no setting and starts nothing, so
-    # the rest of the section is disabled and this says why. Read-only - only the panel button
-    # switches it, and by the time it is off the appliance is usually off the network too.
+    # This is the condition for every writable entity - with it off the appliance takes no
+    # setting and starts nothing - so it was briefly given the configuration category to sit
+    # above them. Home Assistant refuses that outright: "cannot be added as the entity
+    # category is set to config", because that category is reserved for entities a user can
+    # change, and this one only follows the panel button. So it stays an ordinary sensor, and
+    # the name carries the meaning instead.
     WasherBinarySensorDescription(
         key="remote_control",
         translation_key="remote_control",
-        entity_category=EntityCategory.CONFIG,
         value_fn=lambda state: state.remote_control_enabled,
     ),
     WasherBinarySensorDescription(

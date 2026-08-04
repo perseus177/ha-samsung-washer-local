@@ -50,7 +50,7 @@
         "name": "Power"
       },
       "remote_control": {
-        "name": "0. Remote control"
+        "name": "Remote control (required to control it)"
       },
       "kids_lock": {
         "name": "Child lock"
