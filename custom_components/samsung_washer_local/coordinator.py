@@ -46,6 +46,11 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
         )
         self.client = client
         self.host = host
+        # What the device and the entities are identified by. Deliberately not derived
+        # from the appliance's identity read, which is allowed to fail - see
+        # SamsungWasherEntity.__init__. The entry's unique id is the serial number; the
+        # entry id is the fallback, because it cannot change either, whereas the host can.
+        self.identity = entry.unique_id or entry.entry_id
         self.information: dict[str, str] = {}
         # Whether the appliance answered the last poll. Kept separately from
         # last_update_success because the appliance being away is not a failed update -
@@ -72,7 +77,8 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
         unavailable, see SamsungWasherEntity.available - and the last snapshot is kept so
         nothing is thrown away while it is gone. The disappearance is still recorded,
         once, at warning level: knowing when the appliance came and went is genuinely
-        useful, while repeating it for every subsequent poll is not.
+        useful, while repeating it for every subsequent poll is not. The recovery is
+        logged at the same level, so the pair is never half-visible.
 
         Anything that cannot be explained this way is a real failure and is raised, so it
         keeps the coordinator's own error handling.
@@ -96,7 +102,11 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
         except WasherError as err:
             raise UpdateFailed(str(err)) from err
         if not self.reachable:
-            _LOGGER.info("The appliance at %s is answering again", self.host)
+            # Warning, not info, purely so it is visible wherever the disappearance was:
+            # an installation whose log level hides info (`logger: default: warn`) would
+            # otherwise see only the half that says something is wrong, and read a long
+            # since-recovered outage as still going on.
+            _LOGGER.warning("The appliance at %s is answering again", self.host)
             self.reachable = True
         return replace(state, **await self._async_energy())
 

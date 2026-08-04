@@ -34,19 +34,22 @@ class SamsungWasherEntity(CoordinatorEntity[SamsungWasherCoordinator]):
         """Initialise the entity."""
         super().__init__(coordinator)
         information = coordinator.information
-        serial = information.get("serialNumber")
-        # The serial number is the only stable identifier the appliance offers; the IP
-        # can change and the model ID is not unique. If it could not be read (an idle
-        # appliance is usually offline) the host is used, which still keeps the unique
-        # IDs stable for this installation.
-        self._attr_unique_id = f"{serial or coordinator.host}_{key}"
+        # Identity comes from the config entry, never from the identity read: that read is
+        # allowed to fail, because the appliance is off the network most of the time, and
+        # anything derived from it therefore changes between restarts. It used to fall back
+        # to the host, which meant a restart while the appliance was away produced a whole
+        # second device with a second set of entities. The entry's unique id is the serial
+        # number captured when the appliance was demonstrably answering (the config flow
+        # cannot complete otherwise), so it is stable whatever the appliance is doing now.
+        identity = coordinator.identity
+        self._attr_unique_id = f"{identity}_{key}"
         model = information.get("modelID", "").split("|")[0] or None
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, serial or coordinator.host)},
+            identifiers={(DOMAIN, identity)},
             manufacturer=MANUFACTURER,
             model=model,
             name="Washing machine",
-            serial_number=serial,
+            serial_number=information.get("serialNumber"),
             sw_version=next(
                 (
                     version.get("number")

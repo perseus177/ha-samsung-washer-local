@@ -155,6 +155,14 @@ Everything the appliance exposes is covered: `resources` lists exactly eight
 Values that do not fit their sensor's type — `Cold`/`None` for the temperature,
 `NoSpin`/`RinseHold` for the spin — are kept in a `raw` attribute so nothing is lost.
 
+Entities are identified by the appliance's serial number, taken from the config entry
+rather than from a live read — a restart while the appliance is away must not change what
+anything is called. **Up to and including 1.0.6 it could:** a restart during one of those
+absences produced a second device with a duplicate set of entities (`..._2`). From 1.0.7
+those duplicates are renamed back onto the serial where that is possible, and where both
+sets exist the leftovers are named in the log and the duplicate device can be deleted from
+its device page.
+
 The wash programme, the state and the phase are enum sensors, and the vocabulary
 differs between models and firmware families. A value this integration does not know
 is shown as `unknown` with the appliance's own wording in a `raw` attribute (the
