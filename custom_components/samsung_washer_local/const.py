@@ -57,6 +57,10 @@ STATE_PAUSE = "Pause"
 
 # No value for "cancel the cycle" has been observed on this appliance, so both
 # plausible ones are tried in order and success is judged by it landing in Ready.
+# ⚠️ Writing STATE_READY is only safe on an appliance that is *not* already idle: on an
+# idle one it moves the appliance to Pause and resets the temperature, spin and rinse
+# selections back to the programme's defaults. async_cancel therefore reads the state
+# first and writes nothing when it is already Ready.
 CANCEL_STATES = (STATE_READY, "Stop")
 
 # Operation.progress and Operation.state feed enum sensors, and an enum sensor raises

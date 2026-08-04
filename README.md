@@ -24,7 +24,11 @@ cloud being involved.
 | Set temperature / spin / rinse remotely | ❌ not possible |
 
 The Cancel button exists and is wired up, but it has never been confirmed against a
-running cycle. The reason it is not simply a third state to write: `Operation.state` has
+running cycle. It does, however, know to leave an idle appliance alone: writing `Ready` to
+one that is already idle is not the no-op it looks like — measured on a TP6X_WW6500, a
+single such write moved it to Pause and reset the hand-dialled temperature and rinse count
+to the programme's defaults — so Cancel reads the state first and writes nothing when there
+is nothing to cancel. The reason it is not simply a third state to write: `Operation.state` has
 only ever been observed to hold `Ready`, `Run` and `Pause`, and no value for "cancel"
 turned up anywhere in the appliance's own vocabulary. The button therefore writes `Ready`
 and then, if that changes nothing, `Stop`, and judges the outcome by the appliance ending
@@ -33,14 +37,23 @@ in `Ready`, so comparing against the written value would report a false failure.
 does not work on your appliance you will get a clear error saying what each attempt left
 it in; please report that.
 
-Programme selection, by contrast, is genuinely unavailable rather than unimplemented. The appliance
-accepts a write to `Course_XX` with `204 No Content` and then discards it; the official
-app changes the programme over Samsung's private cloud channel
-(`ocfclientcon…samsungiotcloud.com`), which a local client cannot reach. The same is
-true of temperature, spin and rinse.
+Programme selection is a different matter. A `Course_XX` write on its own is answered
+`204 No Content` and then discarded — many shapes were tried, on both the resource and the
+aggregate endpoint, wrapped and bare. What is now known is *why* that may be: the official
+app never writes the programme on its own either. It always sends it in one body together
+with `Operation.state`, alongside the temperature, spin and rinse settings:
 
-Because of that, **a start always runs whatever is set on the physical dial.** If you
-automate starting, read the programme sensor first and check it is what you expect.
+```json
+{"Device":{"Mode":{"options":["Course_5C"]},"Operation":{"state":"Run"},
+           "Washer":{"rinseCycles":"2","waterTemperature":"40","spinLevel":"1400"}}}
+```
+
+So the appliance may well accept a programme change *as part of starting a cycle*, which
+would also explain why isolated temperature, spin and rinse writes are discarded. Sending
+that shape with a state that starts nothing (`Ready`) does **not** work — measured. Whether
+it works with `Run` is untested here, because it would start a real wash. Until then:
+**a start runs whatever is set on the physical dial**, so if you automate starting, read the
+programme sensor first and check it is what you expect.
 
 ## ⚠️ When the appliance is on the network — and when it is not
 

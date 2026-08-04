@@ -478,7 +478,20 @@ class SamsungWasherClient:
         in Ready rather than by it echoing back what was written (a cancel naturally
         lands in Ready, so comparing against the written value would report a false
         failure).
+
+        Nothing is written when the appliance is already idle. That is not merely an
+        optimisation: writing Ready to an idle appliance is *not* the no-op it appears to
+        be. Measured on a TP6X_WW6500 sitting in Ready with 60 degrees and 2 rinses
+        dialled in by hand - one such write moved it to Pause and reset the settings to
+        the programme's own defaults (40 degrees, 3 rinses), discarding the choice.
         """
+        state = (await self._async_get("/devices/0/operation")).get("Operation", {}).get(
+            "state"
+        )
+        if state == STATE_READY:
+            _LOGGER.debug("Nothing to cancel: %s is already idle", self._host)
+            return
+
         errors: list[str] = []
         for candidate in CANCEL_STATES:
             reported = await self._async_write_state(candidate)
