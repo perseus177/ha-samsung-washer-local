@@ -56,9 +56,10 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
     async def _async_update_data(self) -> WasherState | None:
         """Read the state.
 
-        An unreachable appliance is expected behaviour - it leaves the Wi-Fi within
-        minutes of going idle unless Remote Control is on - so it is logged at debug
-        level and merely makes the entities unavailable. An appliance that refuses to
+        An unreachable appliance is expected behaviour - between washes it is often
+        switched off entirely, and even switched on it leaves the network within minutes
+        of going idle unless Remote Control is on - so it is logged at debug level and
+        merely makes the entities unavailable. An appliance that refuses to
         serve while its Wi-Fi control function is off is the same kind of everyday
         condition, only self-reported; both make the entities unavailable, which is
         honest, but the message has to say what the owner can do about it rather than

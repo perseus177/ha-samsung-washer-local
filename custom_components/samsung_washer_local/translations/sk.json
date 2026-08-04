@@ -25,7 +25,7 @@
       }
     },
     "error": {
-      "cannot_connect": "Práčka nie je dostupná. Na WiFi zostáva iba pokiaľ je zapnuté vzdialené ovládanie — zapni ho (so zavretým bubnom) a skús znova.",
+      "cannot_connect": "Práčka nie je dostupná. Zapni ju na paneli a potom zapni vzdialené ovládanie (bubon musí byť zavretý) a skús znova: v nečinnosti po pár minútach zo siete odpadne, ak vzdialené ovládanie nie je zapnuté. Ak je na smart zásuvke, skontroluj, či je zásuvka zapnutá.",
       "control_disabled": "Práčka odpovedala, ale odmieta obsluhovať požiadavky, kým má vypnutú WiFi funkciu ovládania. Zapni na paneli vzdialené ovládanie (Smart Control) so zavretým bubnom a skús znova. Certifikát ani token nie sú problém.",
       "invalid_auth": "Práčka odmietla device token.",
       "invalid_certificate": "Certifikát alebo privátny kľúč sa nepodarilo použiť. Skontroluj, či sú oba PEM bloky vložené celé."
@@ -166,7 +166,7 @@
   },
   "exceptions": {
     "offline": {
-      "message": "Práčka na adrese {host} nie je dostupná. Na WiFi zostáva iba pokiaľ je zapnuté vzdialené ovládanie."
+      "message": "Práčka na adrese {host} nie je dostupná. V nečinnosti zostáva na sieti len so zapnutým vzdialeným ovládaním — a keď je vypnutá na paneli alebo bez napájania, na sieti nie je vôbec."
     },
     "control_disabled": {
       "message": "Práčka na adrese {host} sa nedá ovládať, kým má vypnutú WiFi funkciu ovládania. Zapni na paneli vzdialené ovládanie (Smart Control) so zavretým bubnom."

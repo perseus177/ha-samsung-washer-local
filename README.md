@@ -32,26 +32,37 @@ true of temperature, spin and rinse.
 Because of that, **a start always runs whatever is set on the physical dial.** If you
 automate starting, read the programme sensor first and check it is what you expect.
 
-## ⚠️ The appliance only stays on Wi-Fi with Remote Control on
+## ⚠️ When the appliance is on the network — and when it is not
 
-This trips up everyone. With Remote Control switched off, the appliance associates for
-two to four minutes after being switched on and then leaves the network entirely — the
-router stops listing it, the cloud reports it offline, and this integration's entities
-go unavailable. It is not a fault and not a signal problem.
+This trips up everyone, so it is worth being precise. The appliance is not a device that
+is simply "on the network"; it joins and leaves depending on what it is doing:
 
-**Switch Remote Control on at the appliance** (the door must be closed) and it stays
-connected. Do *not* hold the button down: a long press starts Wi-Fi onboarding (`AP`
-blinks on the display) and disconnects the machine from your network.
+| Appliance | Reachable? |
+|---|---|
+| No power (switched off at the wall, or on a smart plug that is off) | **No** — no power, no Wi-Fi. Nothing in software helps. |
+| Powered but switched off at the panel | **No.** It reports as offline; press the power button first. |
+| Switched on, idle, Remote Control **off** | **Briefly.** It associates for a few minutes and then leaves the network again. |
+| Switched on, idle, Remote Control **on** | **Yes**, it holds the connection. |
+| **Running a cycle** | **Yes, for the whole cycle** — Remote Control is *not* needed. |
+
+So entities going unavailable between washes is normal, and it is not a signal problem.
+Two consequences worth knowing:
+
+- **For continuous monitoring, switch Remote Control on** at the appliance (the door has
+  to be closed). Do *not* hold the button down: a long press starts Wi-Fi onboarding
+  (`AP` blinks on the display) and disconnects the machine from your network.
+- **For following a wash you do not need it.** Once a programme is running, the appliance
+  stays reachable until the cycle ends, whether Remote Control is on or not — so progress,
+  phase and remaining time are readable without changing anything on the panel.
 
 Also give the appliance a **fixed IP** in your DHCP server. It does not send a
 hostname, and the integration addresses it by IP.
 
-Some firmware families are stricter still and answer every request with
-`403 SHE-001 "current function of WiFi is disabled, please enable the function for
-controlling"` while Remote Control is off, instead of just going quiet. That is the same
-situation and the same remedy: the credentials are fine, the appliance simply will not
-serve until Remote Control is on. The integration recognises this response and says so,
-in the log and on the configuration form.
+While Remote Control is off, some appliances go quiet and others answer every request
+with `403 SHE-001 "current function of WiFi is disabled, please enable the function for
+controlling"`. Both mean the same thing and have the same remedy; the credentials are
+fine. The integration recognises that response and says so, in the log and on the
+configuration form, rather than passing the error code on.
 
 ## Requirements
 

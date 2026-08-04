@@ -14,8 +14,9 @@ CONF_POLL_INTERVAL = "poll_interval"
 DEFAULT_PORT = 8888
 # The appliance drops off the network within minutes whenever it is idle and its
 # Remote Control is switched off, so a failed poll is the normal case rather than
-# a fault. A short interval keeps a running cycle responsive without being able
-# to keep the Wi-Fi module awake anyway.
+# a fault. A short interval is still the right default, because the case that matters
+# is a running cycle: the appliance stays reachable for the whole wash whether Remote
+# Control is on or not, and that is when the progress and remaining time move.
 DEFAULT_POLL_INTERVAL = 30
 
 # The usage database holds an hourly counter, so re-reading it more often than

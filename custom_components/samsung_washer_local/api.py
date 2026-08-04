@@ -52,8 +52,11 @@ class WasherAuthError(WasherError):
 class WasherOfflineError(WasherError):
     """The appliance is not reachable.
 
-    This is an everyday occurrence, not a defect: the Wi-Fi module only stays
-    associated while Remote Control is enabled on the appliance.
+    This is an everyday occurrence, not a defect. The appliance joins and leaves the
+    network according to what it is doing: unpowered or switched off at the panel it is
+    not there at all; switched on but idle it stays for a few minutes and then leaves
+    again unless Remote Control is on; and while a cycle is running it stays reachable
+    throughout, Remote Control or not.
     """
 
 
