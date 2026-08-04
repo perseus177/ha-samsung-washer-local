@@ -22,7 +22,15 @@ from .api import (
     shown_temperature,
     written_temperature,
 )
-from .const import COURSE_MAP, DOMAIN, ENERGY_INTERVAL, STATE_READY
+from .const import (
+    COURSE_MAP,
+    DOMAIN,
+    ENERGY_INTERVAL,
+    HYGIENE_MIN_RINSE,
+    HYGIENE_RINSE,
+    HYGIENE_TEMPERATURE,
+    STATE_READY,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -200,10 +208,26 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
         return (self.data.course_code or None) if self.data else None
 
     def allowed_for(self, field: str) -> list[str]:
-        """Return the values the selected programme allows for one setting."""
+        """Return the values the selected programme allows for one setting.
+
+        Two things narrow it: what the programme itself permits, decoded from the appliance,
+        and - for the rinse count at 95 degrees - the app's own hygiene-wash rule, see
+        HYGIENE_TEMPERATURE in const.py.
+        """
         code = (self.selected_programme() or "").upper()
         options = (self.data.course_options if self.data else {}).get(code, {})
-        return list((options.get(field) or {}).get("allowed") or [])
+        allowed = list((options.get(field) or {}).get("allowed") or [])
+        if field == "rinse" and self._hygiene_wash():
+            allowed = [
+                value
+                for value in allowed
+                if not value.isdigit() or int(value) >= HYGIENE_MIN_RINSE
+            ]
+        return allowed
+
+    def _hygiene_wash(self) -> bool:
+        """Whether the temperature chosen for the next start is the 95 degree wash."""
+        return self.pending("temperature") == HYGIENE_TEMPERATURE
 
     def supported_temperatures(self) -> list[str]:
         """Return the temperature tokens the appliance says it has."""
@@ -225,6 +249,13 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
         chosen = self._pending_settings.get(field)
         if chosen is not None and chosen in allowed:
             return chosen
+        if field == "rinse" and self._hygiene_wash():
+            # The app's hygiene-wash behaviour: picking 95 degrees moves the rinse count to
+            # four, and a count it will not accept comes back up to the lowest one it will.
+            if chosen is None and HYGIENE_RINSE in allowed:
+                return HYGIENE_RINSE
+            if allowed:
+                return allowed[0]
         default = self.default_for(field)
         return default if default in allowed else (allowed[0] if allowed else None)
 
@@ -332,6 +363,18 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
                         "allowed": ", ".join(offered),
                     },
                 )
+            if len(allowed) == 1:
+                # Nothing to choose, so nothing to send: the appliance applies the one value
+                # itself. Worth skipping rather than sending back what it already knows,
+                # because a start whose body carries settings at all is the one that was seen
+                # to load the programme and not run it. It also sidesteps a genuine unknown on
+                # Drum Clean, where the app puts its substituted 70 on the wire while the
+                # appliance reports 60 and lists no 70 at all - which of the two the firmware
+                # wants there has never been measured.
+                _LOGGER.debug(
+                    "Not sending %s=%s: %s allows nothing else", field, value, code
+                )
+                continue
             checked[field] = str(value)
         return checked
 

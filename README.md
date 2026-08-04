@@ -115,6 +115,17 @@ allow, naming the ones it does — worth doing, because the appliance itself wou
 impossible combination with a silent `204`. On a TP6X_WW6500 Drum Clean allows exactly one
 temperature, 400 rpm and 2 rinses, while Rinse + Spin has no temperature at all.
 
+**At 95 °C the rinse count starts at two, and defaults to four.** A hygiene wash dissolves
+more detergent than a cold one, and the appliance's own app will not run one on fewer than two
+rinses: picking 95 moves the count to four, and a hand-lowered count comes back up to two. The
+same narrowing happens here, so the rinse dropdown offers `2`–`5` while 95 is selected and
+`start_cycle` refuses a lower count rather than sending a combination the app would not.
+
+**A setting the programme fixes to a single value is not sent at all.** There is nothing to
+choose, and the appliance applies that value itself — Drum Clean gets its 400 rpm and 2 rinses
+whether they are in the body or not. The official app builds the `Washer` block the same way,
+from per-setting flags rather than unconditionally.
+
 **Drum Clean is reported as 70 °C, which is not what the appliance says.** It answers `60`,
 because `waterTemperature` has no `70` token to answer with — but the panel prints 70 °C and
 so does the official app, which forces the substitution itself whenever the programme is one

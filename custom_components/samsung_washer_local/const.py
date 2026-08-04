@@ -100,6 +100,16 @@ DRUM_CLEAN_PROGRAMMES = ("drum_clean",)
 DRUM_CLEAN_HIGH_TOKENS = ("70", "75", "80", "90", "95")
 DRUM_CLEAN_TEMPERATURE_RAW = "60"
 DRUM_CLEAN_TEMPERATURE_SHOWN = "70"
+
+# 95 degrees is a hygiene wash, and the appliance's own app will not run one on fewer than two
+# rinses: checkSpecialCase in washer.js (~17083) sets four rinses when 95 is picked, and clamps
+# a hand-lowered count back up to two. It does that for one class of appliance, and this is one
+# of them - DeviceType_0167, "medium size drum washer, Europe". Mirrored so the dropdown offers
+# what the app offers, and so start_cycle refuses a combination the app would never send.
+# Detergent needs rinsing out, and at 95 there is more of it dissolved.
+HYGIENE_TEMPERATURE = "95"
+HYGIENE_MIN_RINSE = 2
+HYGIENE_RINSE = "4"
 # These two carry a min and a max index in the low byte instead of a bitmap. Only top
 # loaders report them, so they are decoded but not offered as service fields.
 OPTION_TYPE_WATER_HEIGHT = 0x6
