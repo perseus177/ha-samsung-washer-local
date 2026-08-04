@@ -6,6 +6,9 @@ choice inside Home Assistant and write nothing until the Start selected programm
 pressed, because the appliance takes a programme only together with a start: a select that
 wrote would mean one tap on a dashboard starts a wash.
 
+All five are unavailable while Remote Control is switched off at the appliance: that is the
+appliance declining to be driven, so a dropdown that cannot be applied should not be offered.
+
 The three setting selects offer exactly what the chosen programme allows, decoded from the
 appliance's own supportedOptions - so picking Drum Clean leaves one temperature to choose
 from, and Rinse + Spin has no temperature at all, in which case that select goes
@@ -24,7 +27,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import SamsungWasherConfigEntry
 from .const import COURSE_MAP, LAUNDRY_OUT_VALUES
 from .coordinator import SamsungWasherCoordinator
-from .entity import SamsungWasherControlEntity, SamsungWasherEntity
+from .entity import SamsungWasherConfigEntity
 
 PARALLEL_UPDATES = 1
 
@@ -47,7 +50,7 @@ async def async_setup_entry(
     )
 
 
-class WasherLaundryOutSelect(SamsungWasherControlEntity, SelectEntity):
+class WasherLaundryOutSelect(SamsungWasherConfigEntity, SelectEntity):
     """The Laundry Out reminder interval in minutes, 0 meaning off.
 
     Numbered and categorised with the four above so the five read as the sequence the app
@@ -77,7 +80,7 @@ class WasherLaundryOutSelect(SamsungWasherControlEntity, SelectEntity):
         await self.coordinator.async_set_laundry_out_time(option)
 
 
-class WasherProgrammeSelect(SamsungWasherEntity, SelectEntity):
+class WasherProgrammeSelect(SamsungWasherConfigEntity, SelectEntity):
     """Which programme the Start selected programme button will run.
 
     Its option list is the programmes the appliance itself advertises, so a model with a
@@ -116,7 +119,7 @@ class WasherProgrammeSelect(SamsungWasherEntity, SelectEntity):
             self.coordinator.set_pending_programme(option)
 
 
-class WasherSettingSelect(SamsungWasherEntity, SelectEntity):
+class WasherSettingSelect(SamsungWasherConfigEntity, SelectEntity):
     """Temperature, rinse count or spin speed for the next start.
 
     Unavailable when the chosen programme does not offer the setting at all - Rinse + Spin

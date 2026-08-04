@@ -62,15 +62,39 @@ class SamsungWasherEntity(CoordinatorEntity[SamsungWasherCoordinator]):
         )
 
 
-class SamsungWasherControlEntity(SamsungWasherEntity):
-    """A control entity.
+class SamsungWasherConfigEntity(SamsungWasherEntity):
+    """Something that configures the next wash - the numbered selects, switches and button.
 
-    Controls stay available even when the last poll failed. The appliance is off the
-    network most of the time it is idle, and hiding the buttons then would be more
-    confusing than letting a press report a clear "not reachable" error.
+    Unavailable whenever Remote Control is switched off at the appliance, because that is the
+    appliance refusing to be driven at all: it will not take a setting, it will not start, and
+    within minutes it leaves the network entirely. Offering a dropdown that cannot be applied,
+    showing the last value it happened to see, is worse than showing nothing.
+
+    Only an explicit false disables. Before the first successful poll the flag is unknown, and
+    unknown is not a refusal - SamsungWasherEntity already withholds those entities anyway
+    while there is no data to show.
     """
 
     @property
     def available(self) -> bool:
-        """Return True - controls are always offered."""
+        """Return whether the appliance is currently willing to be configured."""
+        state = self.coordinator.data
+        return super().available and (state is None or state.remote_control_enabled is not False)
+
+
+class SamsungWasherControlEntity(SamsungWasherEntity):
+    """A stateless action on the appliance as it stands - Start, Pause, Cancel.
+
+    These stay available even when the appliance is away, and deliberately so: it is off the
+    network most of the time it is idle, and hiding the buttons then would be more confusing
+    than letting a press report a clear "not reachable" error.
+
+    Only for entities that display nothing. Anything showing a value read from the appliance
+    belongs to SamsungWasherEntity or SamsungWasherConfigEntity, or it would present the last
+    value it saw as though it were current.
+    """
+
+    @property
+    def available(self) -> bool:
+        """Return True - these are always offered."""
         return True

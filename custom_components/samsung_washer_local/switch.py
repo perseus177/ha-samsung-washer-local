@@ -39,7 +39,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import SamsungWasherConfigEntry
 from .const import ADD_WASH_ALL, ADD_WASH_DESCRIPTION, ADD_WASH_NONE
 from .coordinator import SamsungWasherCoordinator
-from .entity import SamsungWasherControlEntity
+from .entity import SamsungWasherConfigEntity
 
 PARALLEL_UPDATES = 1
 
@@ -90,7 +90,7 @@ async def async_setup_entry(
     )
 
 
-class WasherAddWashSwitch(SamsungWasherControlEntity, SwitchEntity):
+class WasherAddWashSwitch(SamsungWasherConfigEntity, SwitchEntity):
     """The Add wash alarm, or one of the moments it fires at."""
 
     entity_description: WasherSwitchDescription
@@ -117,13 +117,16 @@ class WasherAddWashSwitch(SamsungWasherControlEntity, SwitchEntity):
     def available(self) -> bool:
         """Return whether this switch can be used.
 
-        The moment switches follow the alarm, the way the app greys its checkboxes out while
-        the master is off. The alarm itself is always available, like the other controls.
+        ``super()`` covers the two conditions all four share - the appliance has to be
+        reachable and willing to be driven. On top of that the moment switches follow the
+        alarm, the way the app greys its checkboxes out while the master is off.
         """
+        if not super().available:
+            return False
         if self.entity_description.bit is None:
-            return super().available
+            return True
         mask = self._mask
-        return super().available and mask is not None and mask != 0
+        return mask is not None and mask != 0
 
     @property
     def is_on(self) -> bool | None:
