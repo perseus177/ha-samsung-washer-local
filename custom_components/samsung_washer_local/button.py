@@ -1,9 +1,12 @@
-"""Buttons for Samsung Washer Local - start, pause, resume and cancel.
+"""Buttons for Samsung Washer Local - start a chosen programme, start, pause and cancel.
 
-The programme itself cannot be selected remotely: the appliance accepts a write to
-Course_XX and silently discards it (Samsung keeps programme selection on its private
-cloud channel). What is started is therefore always whatever is set on the dial,
-which is why the course sensor is worth checking before automating a start.
+Two ways to start, because the appliance draws the line in an unusual place. A programme
+cannot be written on its own - that is answered 204 and discarded - but it *is* accepted
+together with the start, which is what Start selected programme does: it runs whatever the
+Programme to start dropdown points at, with the settings chosen beside it.
+
+Plain Start is the other way: it resumes, or runs whatever is set on the dial, and does not
+touch the programme at all. Worth reading the Programme sensor first if a script uses it.
 """
 
 from __future__ import annotations
@@ -26,15 +29,24 @@ PARALLEL_UPDATES = 1
 class WasherButtonDescription(ButtonEntityDescription):
     """Describes a button and the operation state it writes.
 
-    ``target_state`` is None for cancel, which needs its own routine: the value that
-    cancels a cycle is not known, and a cancel lands in Ready rather than echoing back
-    whatever was written.
+    ``target_state`` is None for the two buttons that need their own routine: cancel,
+    because it is judged by the appliance landing in Ready rather than by an echo, and
+    Start selected programme, which sends a programme along with the start.
     """
 
     target_state: str | None = None
+    starts_selection: bool = False
 
 
 BUTTONS: tuple[WasherButtonDescription, ...] = (
+    # Starts what the selects are pointing at, which is the only way to choose a programme
+    # remotely: the appliance accepts the programme and the start only together.
+    WasherButtonDescription(
+        key="start_selected",
+        translation_key="start_selected",
+        target_state=None,
+        starts_selection=True,
+    ),
     WasherButtonDescription(
         key="start",
         translation_key="start",
@@ -80,7 +92,10 @@ class WasherButton(SamsungWasherControlEntity, ButtonEntity):
         self.entity_description = description
 
     async def async_press(self) -> None:
-        """Write the operation state, or cancel the cycle."""
+        """Start the selection, write the operation state, or cancel the cycle."""
+        if self.entity_description.starts_selection:
+            await self.coordinator.async_start_selected()
+            return
         target = self.entity_description.target_state
         if target is None:
             await self.coordinator.async_cancel()

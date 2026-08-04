@@ -24,10 +24,28 @@ cloud being involved.
 | Switch AddWash on and off | ✅ |
 | Set the programme *without* starting it | ❌ the appliance only accepts the two together |
 
-### Starting a cycle
+### Choosing a programme on a dashboard
 
-`samsung_washer_local.start_cycle` selects a programme and starts it in one go, because the
-appliance accepts the two only together — a programme written on its own is answered
+The app's own flow — pick programme, temperature, rinse, spin, then press start — exists as
+entities, so no YAML is needed for the common case:
+
+| Entity | |
+|---|---|
+| `select` Programme to start | The programmes *this* appliance advertises. Starts on whatever the dial says, so it means something untouched. |
+| `select` Water temperature / Rinse cycles / Spin speed to use | **Only what the chosen programme allows.** Pick Drum Clean and the temperature list becomes `60` alone; pick Rinse + Spin and the temperature select goes unavailable, because that programme has none. |
+| `button` Start selected programme | Sends the lot. |
+
+Switching programme re-narrows the three lists and drops a value the new programme does not
+allow: 60 °C chosen under Cotton does not survive a switch to Super Eco, which is cold only —
+it becomes `Cold`, that programme's own default. **None of the four selects touch the
+appliance**; nothing is sent until the button is pressed. The reason is the same one that
+makes this whole section interesting: a programme is only accepted together with a start, so
+a select that wrote would mean one tap on a dashboard starts a wash.
+
+### Starting a cycle from a script
+
+`samsung_washer_local.start_cycle` does the same in one action, for automations, because the
+appliance accepts programme and start only together — a programme written on its own is answered
 `204 No Content` and discarded, and so are isolated temperature, spin and rinse writes. This
 is the request the official app makes, and the one this service makes:
 
@@ -185,7 +203,9 @@ and restart Home Assistant.
 | `sensor` Diagnosis | `Diagnosis.diagnosisStart`; also carries every raw `Mode.options` token as attributes |
 | `sensor` Consumption counter | The appliance's own counter, **no unit** — see below |
 | `button` Start, Pause, Cancel | Start also resumes from pause |
-| `select` Laundry Out reminder | `0` / `30` / `60` / `90` minutes |
+| `select` Laundry Out reminder | `0` / `30` / `60` / `90` minutes — writes straight to the appliance |
+| `select` Programme / temperature / rinse / spin to start | The choice for the next start; see above. Writes nothing on its own |
+| `button` Start selected programme | Starts that choice |
 | `switch` AddWash | Writable. A three-bit mask underneath (`0`–`7`), so the raw value is kept in an attribute; on writes `7` |
 | `sensor` Quick wash | Read-only — the appliance reports whether it has a quick-wash preset, and the app has no write for it either |
 

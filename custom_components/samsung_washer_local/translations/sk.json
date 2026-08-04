@@ -83,11 +83,42 @@
       },
       "cancel": {
         "name": "Zrušiť"
+      },
+      "start_selected": {
+        "name": "Spustiť vybraný program"
       }
     },
     "select": {
       "laundry_out_time": {
         "name": "Zvyšná bielizeň"
+      },
+      "selected_programme": {
+        "name": "Program na spustenie",
+        "state": {
+          "cotton": "Bavlna",
+          "extra_quick": "Extra Rýchly",
+          "super_eco": "Super Eco",
+          "delicates": "Jemné tkaniny",
+          "baby_care": "Detské prádlo",
+          "outdoor": "Outdoor",
+          "dark_garments": "Tmavé oblečenie",
+          "drum_clean": "Čistenie bubna",
+          "rinse_spin": "Plákanie a odstreďovanie",
+          "wool": "Vlna",
+          "bedding": "Posteľná bielizeň",
+          "synthetics": "Syntetika",
+          "eco_cotton": "e-Bavlna",
+          "denim": "Denim"
+        }
+      },
+      "selected_temperature": {
+        "name": "Teplota vody"
+      },
+      "selected_rinse": {
+        "name": "Počet plákaní"
+      },
+      "selected_spin": {
+        "name": "Odstreďovanie"
       }
     },
     "sensor": {
@@ -199,6 +230,9 @@
     },
     "remote_control_off": {
       "message": "Práčka na adrese {host} má vypnuté vzdialené ovládanie, takže cyklus nespustí nikomu okrem panela. Zapni vzdialené ovládanie (bubon musí byť zavretý) a skús znova."
+    },
+    "nothing_selected": {
+      "message": "Nie je vybraný žiadny program. Vyber ho v zozname Program na spustenie, alebo zavolaj akciu start_cycle s programom."
     }
   },
   "services": {

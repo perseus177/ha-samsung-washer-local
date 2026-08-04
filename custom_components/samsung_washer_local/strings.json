@@ -83,11 +83,42 @@
       },
       "cancel": {
         "name": "Cancel"
+      },
+      "start_selected": {
+        "name": "Start selected programme"
       }
     },
     "select": {
       "laundry_out_time": {
         "name": "Laundry Out reminder"
+      },
+      "selected_programme": {
+        "name": "Programme to start",
+        "state": {
+          "cotton": "Cotton",
+          "extra_quick": "Extra Quick",
+          "super_eco": "Super Eco",
+          "delicates": "Delicates",
+          "baby_care": "Baby Care",
+          "outdoor": "Outdoor",
+          "dark_garments": "Dark Garments",
+          "drum_clean": "Drum Clean",
+          "rinse_spin": "Rinse + Spin",
+          "wool": "Wool",
+          "bedding": "Bedding",
+          "synthetics": "Synthetics",
+          "eco_cotton": "Eco Cotton",
+          "denim": "Denim"
+        }
+      },
+      "selected_temperature": {
+        "name": "Water temperature to use"
+      },
+      "selected_rinse": {
+        "name": "Rinse cycles to use"
+      },
+      "selected_spin": {
+        "name": "Spin speed to use"
       }
     },
     "sensor": {
@@ -199,6 +230,9 @@
     },
     "remote_control_off": {
       "message": "Remote Control is switched off on the appliance at {host}, so it will not start a cycle for anyone but the panel. Switch Remote Control on (the door has to be closed) and try again."
+    },
+    "nothing_selected": {
+      "message": "No programme is selected yet. Pick one in the Programme to start dropdown, or call the start_cycle action with a programme."
     }
   },
   "services": {

@@ -61,6 +61,10 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
         # between polls rather than being pulled on every one.
         self._energy: dict[str, Any] = {}
         self._energy_read: float = 0.0
+        # What the programme/temperature/rinse/spin selects are pointing at. Held here and
+        # not on the appliance - see the pending-selection section below.
+        self._pending_programme: str | None = None
+        self._pending_settings: dict[str, str] = {}
 
     async def _async_update_data(self) -> WasherState | None:
         """Read the state.
@@ -174,6 +178,73 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
         except WasherError as err:
             raise self._user_error(err, "cancel_failed") from err
         await self.async_request_refresh()
+
+    # ------------------------------------------------------------------ pending selection
+    #
+    # The appliance takes a programme only together with a start, so the dashboard cannot
+    # simply have a "programme" select that writes: one tap would run a wash. What it has
+    # instead is this - a choice held in Home Assistant, mirroring how the app works, where
+    # you pick programme, temperature, rinse and spin and *then* press start. Nothing here
+    # touches the appliance until the Start selected programme button is pressed.
+
+    def selected_programme(self) -> str | None:
+        """Return the course code the selects are pointing at.
+
+        Defaults to whatever is on the dial, so the dropdowns mean something the moment the
+        appliance is first read, rather than being empty until touched.
+        """
+        if self._pending_programme:
+            return self._pending_programme
+        return (self.data.course_code or None) if self.data else None
+
+    def allowed_for(self, field: str) -> list[str]:
+        """Return the values the selected programme allows for one setting."""
+        code = (self.selected_programme() or "").upper()
+        options = (self.data.course_options if self.data else {}).get(code, {})
+        return list((options.get(field) or {}).get("allowed") or [])
+
+    def default_for(self, field: str) -> str | None:
+        """Return the selected programme's own default for one setting."""
+        code = (self.selected_programme() or "").upper()
+        options = (self.data.course_options if self.data else {}).get(code, {})
+        return (options.get(field) or {}).get("default")
+
+    def pending(self, field: str) -> str | None:
+        """Return the chosen value for a setting, falling back to the programme's default.
+
+        Clamped to what the programme allows: choosing 60 degrees under Cotton and then
+        switching to Super Eco, which is cold only, must not leave 60 selected.
+        """
+        allowed = self.allowed_for(field)
+        chosen = self._pending_settings.get(field)
+        if chosen is not None and chosen in allowed:
+            return chosen
+        default = self.default_for(field)
+        return default if default in allowed else (allowed[0] if allowed else None)
+
+    def set_pending_programme(self, code: str) -> None:
+        """Point the selects at another programme, dropping settings it does not allow."""
+        self._pending_programme = code.upper()
+        self._pending_settings = {}
+
+    def set_pending(self, field: str, value: str) -> None:
+        """Record a chosen setting."""
+        self._pending_settings[field] = value
+
+    async def async_start_selected(self) -> None:
+        """Start the programme the selects are pointing at."""
+        code = self.selected_programme()
+        if not code:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="nothing_selected",
+            )
+        await self.async_start_cycle(
+            code,
+            temperature=self.pending("temperature"),
+            rinse=self.pending("rinse"),
+            spin=self.pending("spin"),
+        )
 
     def _resolve_programme(self, programme: str) -> str:
         """Turn what the user asked for into a course code the appliance knows.
