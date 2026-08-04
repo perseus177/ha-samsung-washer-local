@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -25,11 +26,42 @@ from homeassistant.util import dt as dt_util
 
 from . import SamsungWasherConfigEntry
 from .api import WasherState
-from .const import COURSE_OPTIONS, PROGRESS_OPTIONS, STATE_OPTIONS
+from .const import COURSE_OPTIONS, PROGRESS_OPTIONS, STATE_OPTIONS, UNKNOWN
 from .coordinator import SamsungWasherCoordinator
 from .entity import SamsungWasherEntity
 
 PARALLEL_UPDATES = 0
+
+_LOGGER = logging.getLogger(__name__)
+
+# Values already logged as unrecognised, so a stage that shows up on every poll is
+# reported once instead of filling the log.
+_SEEN_UNKNOWN: set[str] = set()
+
+
+def _enum(value: str | None, options: list[str]) -> str | None:
+    """Map a value the appliance reports onto an enum sensor's option list.
+
+    An enum sensor raises if it is given a value outside its options, which takes the
+    entity down for good rather than merely showing something unexpected. Since the
+    appliance's vocabulary differs between models and firmware families - a washer was
+    reported publishing the stage "Prewash" - anything unrecognised becomes "unknown",
+    with the raw value kept in an attribute and logged once so it can be added.
+    """
+    if not value:
+        return None
+    lowered = value.lower()
+    if lowered in options:
+        return lowered
+    if lowered not in _SEEN_UNKNOWN:
+        _SEEN_UNKNOWN.add(lowered)
+        _LOGGER.warning(
+            "The appliance reported %r, which this integration does not know yet;"
+            " showing it as 'unknown'. Please report it at"
+            " https://github.com/perseus177/ha-samsung-washer-local/issues",
+            value,
+        )
+    return UNKNOWN
 
 
 def _finish_time(state: WasherState) -> datetime | None:
@@ -82,14 +114,14 @@ SENSORS: tuple[WasherSensorDescription, ...] = (
         translation_key="state",
         device_class=SensorDeviceClass.ENUM,
         options=STATE_OPTIONS,
-        value_fn=lambda state: state.state.lower() if state.state else None,
+        value_fn=lambda state: _enum(state.state, STATE_OPTIONS),
     ),
     WasherSensorDescription(
         key="progress",
         translation_key="progress",
         device_class=SensorDeviceClass.ENUM,
         options=PROGRESS_OPTIONS,
-        value_fn=lambda state: state.progress,
+        value_fn=lambda state: _enum(state.progress, PROGRESS_OPTIONS),
     ),
     WasherSensorDescription(
         key="progress_percentage",
@@ -205,10 +237,15 @@ class WasherSensor(SamsungWasherEntity, SensorEntity):
             return _attrs(raw=state.spin_level_raw, supported=state.supported_spin_level)
         if key == "rinse_cycles":
             return _attrs(supported=state.supported_rinse_cycles)
+        if key == "state":
+            # The raw wording matters when the value fell through to "unknown".
+            return _attrs(raw=state.state)
         if key == "progress":
             # supportedProgress is dynamic - it reflects which stages the selected
             # options will actually run.
-            return _attrs(supported_progress=state.supported_progress)
+            return _attrs(
+                raw=state.progress, supported_progress=state.supported_progress
+            )
         if key == "diagnosis":
             # Everything else the appliance reports, including the tokens whose meaning
             # is unknown (EnergyKW, NoCheck_SC, DeviceType, QuickWash, TimeSync,

@@ -115,17 +115,26 @@
         "state": {
           "ready": "Pripravená",
           "run": "Perie",
-          "pause": "Pozastavená"
+          "pause": "Pozastavená",
+          "unknown": "Neznámy"
         }
       },
       "progress": {
         "name": "Fáza",
         "state": {
           "none": "Nezačaté",
+          "delaywash": "Odložený štart",
+          "weightsensing": "Váženie prádla",
+          "prewash": "Predpieranie",
+          "predrain": "Vypúšťanie vody",
           "wash": "Pranie",
           "rinse": "Plákanie",
           "spin": "Odstreďovanie",
-          "finish": "Dopraté"
+          "steaming": "Naparovanie",
+          "drying": "Sušenie",
+          "cooling": "Chladenie",
+          "finish": "Dopraté",
+          "unknown": "Neznámy"
         }
       },
       "progress_percentage": {

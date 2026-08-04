@@ -102,7 +102,7 @@ and restart Home Assistant.
 |---|---|
 | `sensor` Programme | Enum; the raw code is kept in the `course_code` attribute |
 | `sensor` State | `ready` / `run` / `pause` |
-| `sensor` Phase | `none` / `wash` / `rinse` / `spin` / `finish` |
+| `sensor` Phase | `none` / `delaywash` / `weightsensing` / `prewash` / `predrain` / `wash` / `rinse` / `spin` / `steaming` / `drying` / `cooling` / `finish` |
 | `sensor` Progress | Percent. Tracks elapsed time, not actual washing progress |
 | `sensor` Remaining time | Minutes |
 | `sensor` Finishes at | Timestamp, derived from the remaining time; only while running |
@@ -121,6 +121,12 @@ Everything the appliance exposes is covered: `resources` lists exactly eight
 `Operation`, `Washer`) and every field of each is either an entity or an attribute.
 Values that do not fit their sensor's type — `Cold`/`None` for the temperature,
 `NoSpin`/`RinseHold` for the spin — are kept in a `raw` attribute so nothing is lost.
+
+The wash programme, the state and the phase are enum sensors, and the vocabulary
+differs between models and firmware families. A value this integration does not know
+is shown as `unknown` with the appliance's own wording in a `raw` attribute (the
+programme keeps its `course_code`) and logged once, rather than breaking the entity.
+Please open an issue with that raw value so it can be added.
 
 ### Which panel options are readable
 

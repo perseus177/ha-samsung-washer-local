@@ -58,8 +58,32 @@ STATE_PAUSE = "Pause"
 # plausible ones are tried in order and success is judged by it landing in Ready.
 CANCEL_STATES = (STATE_READY, "Stop")
 
-PROGRESS_OPTIONS = ["none", "wash", "rinse", "spin", "finish"]
-STATE_OPTIONS = ["ready", "run", "pause"]
+# Operation.progress and Operation.state feed enum sensors, and an enum sensor raises
+# if it is handed a value outside its option list - which takes the entity down rather
+# than showing something odd. Both lists are therefore kept wide, in cycle order, and
+# anything still unrecognised is mapped to "unknown" with the raw value in an attribute
+# (see _enum in sensor.py). The extra stages are the ones Samsung appliances have been
+# seen to report: Prewash and Delaywash appear on this washer as options are selected,
+# Weightsensing and Predrain on other washers, Steaming on steam models, and
+# Drying/Cooling on washer-dryer combos.
+UNKNOWN = "unknown"
+
+PROGRESS_OPTIONS = [
+    "none",
+    "delaywash",
+    "weightsensing",
+    "prewash",
+    "predrain",
+    "wash",
+    "rinse",
+    "spin",
+    "steaming",
+    "drying",
+    "cooling",
+    "finish",
+    UNKNOWN,
+]
+STATE_OPTIONS = ["ready", "run", "pause", UNKNOWN]
 
 # "Laundry Out" reminder: the drum tumbles periodically after the cycle ends until
 # the laundry is taken out. 0 disables it. Writable through /devices/0/mode.

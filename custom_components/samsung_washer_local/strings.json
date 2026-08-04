@@ -115,17 +115,26 @@
         "state": {
           "ready": "Ready",
           "run": "Running",
-          "pause": "Paused"
+          "pause": "Paused",
+          "unknown": "Unknown"
         }
       },
       "progress": {
         "name": "Phase",
         "state": {
           "none": "Not started",
+          "delaywash": "Delayed start",
+          "weightsensing": "Weight sensing",
+          "prewash": "Prewash",
+          "predrain": "Draining",
           "wash": "Wash",
           "rinse": "Rinse",
           "spin": "Spin",
-          "finish": "Finished"
+          "steaming": "Steam",
+          "drying": "Drying",
+          "cooling": "Cooling",
+          "finish": "Finished",
+          "unknown": "Unknown"
         }
       },
       "progress_percentage": {

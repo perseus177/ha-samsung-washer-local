@@ -61,6 +61,8 @@ class WasherOfflineError(WasherError):
 class WasherState:
     """A snapshot of everything the local API exposes."""
 
+    # Both are raw, as the appliance words them ("Run", "Prewash"): the enum sensors
+    # normalise them, and every other consumer compares against the raw values.
     state: str | None = None
     progress: str | None = None
     progress_percentage: int | None = None
@@ -359,7 +361,8 @@ class SamsungWasherClient:
 
         return WasherState(
             state=operation.get("state"),
-            progress=progress.lower() if isinstance(progress, str) else None,
+            # Kept exactly as reported; the sensor maps it onto its option list.
+            progress=progress if isinstance(progress, str) else None,
             progress_percentage=_parse_int(operation.get("progressPercentage")),
             remaining_minutes=_parse_minutes(operation.get("remainingTime")),
             power=operation.get("power"),
