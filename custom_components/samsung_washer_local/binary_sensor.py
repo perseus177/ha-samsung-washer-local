@@ -59,6 +59,9 @@ BINARY_SENSORS: tuple[WasherBinarySensorDescription, ...] = (
             None if state.kids_lock is None else state.kids_lock != "Ready"
         ),
     ),
+    # Three different things about Add wash, easy to confuse, so: this one is whether the
+    # programme the appliance currently has loaded permits adding at all (7 on Cotton, 0
+    # during a Drum Clean, and it moves as rinse and spin options are changed).
     WasherBinarySensorDescription(
         key="add_wash_available",
         translation_key="add_wash_available",
@@ -82,6 +85,9 @@ BINARY_SENSORS: tuple[WasherBinarySensorDescription, ...] = (
         translation_key="delay_wash",
         value_fn=lambda state: _has_stage(state, "delaywash"),
     ),
+    # ...this one is whether the alarm is switched on at all - the read-only view of what
+    # the Add wash alarm switch writes, kept because an automation reading a state should not
+    # have to read a switch...
     WasherBinarySensorDescription(
         key="add_wash_set",
         translation_key="add_wash_set",
@@ -89,9 +95,11 @@ BINARY_SENSORS: tuple[WasherBinarySensorDescription, ...] = (
             None if state.add_wash_set is None else state.add_wash_set != "0"
         ),
     ),
-    # Disabled by default deliberately: this is the blinking panel lamp, observed
-    # flipping thirty times in six minutes with nobody touching the appliance. Enabling
-    # it fills the recorder with state changes that mean nothing.
+    # ...and this one is the live signal: right now, laundry may be added. The plugin's
+    # wording for it is "Add wash available now. Put additional laundry or softener into the
+    # washer." Disabled by default deliberately, because it is a *blinking* lamp - observed
+    # flipping thirty times in six minutes with nobody touching the appliance - so it fills
+    # the recorder, and an automation using it wants a `for:` of a few seconds.
     WasherBinarySensorDescription(
         key="add_wash_indicator",
         translation_key="add_wash_indicator",

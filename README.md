@@ -110,10 +110,18 @@ and switching off the last remaining moment is the same thing as switching the a
 The description above is also carried as an attribute on switch 6, since Home Assistant has
 no tooltip for an entity and the more-info dialog does show attributes.
 
-Whether AddWash can be *used* at all is a different value — `AddWashAvailable`, which the
-appliance recomputes per programme (7 on Cotton, 0 during a Drum Clean) and publishes as the
-**AddWash available** binary sensor. It does not gate these switches: the mask was verified
-writable while a Drum Clean was running and availability read `0`.
+Three binary sensors sit alongside, and they are easy to mix up, so they are named for what
+they answer:
+
+| Sensor | Answers |
+|---|---|
+| **Add wash alarm enabled** | Is the alarm switched on at all? The read-only view of switch 6, for automations that would rather read a state than a switch. |
+| **Add wash allowed by programme** | Does the programme the appliance currently has loaded permit adding at all? `AddWashAvailable` — 7 on Cotton, **0 during a Drum Clean**, and it moves as the rinse and spin options change. It does **not** gate the switches: the mask was verified writable while a Drum Clean ran and this read `0`. |
+| **Add wash possible now (lamp)** | Right now, may laundry be added? The appliance's own indicator — the plugin words it *"Add wash available now. Put additional laundry or softener into the washer."* **Disabled by default**, because it is a *blinking* lamp: measured flipping thirty times in six minutes. Usable as a trigger with a `for:` of a few seconds. |
+
+Note that none of this makes Home Assistant notify you — the alarm beeps on the appliance, and
+Samsung pushes to its own app. For a notification in Home Assistant, trigger on the Phase
+sensor reaching `rinse` or `spin`, which are the same moments, or on the lamp above.
 
 ### Cancelling
 
@@ -227,7 +235,8 @@ and restart Home Assistant.
 | `sensor` Remaining time | Minutes |
 | `sensor` Finishes at | Timestamp, derived from the remaining time; only while running |
 | `sensor` Water temperature, Spin speed, Rinse cycles | Read-only |
-| `binary_sensor` Power, Remote control, Child lock, AddWash available, Alarm | Alarm carries the appliance's error codes in an attribute |
+| `binary_sensor` Power, Remote control, Child lock, Alarm | Alarm carries the appliance's error codes in an attribute |
+| `binary_sensor` Add wash alarm enabled / allowed by programme / possible now | Three different things — see below |
 | `binary_sensor` Prewash, Delayed start | Read from `supportedProgress`, see below |
 | `binary_sensor` AddWash | The feature's own on/off (`AddWashSet`) |
 | `binary_sensor` AddWash indicator | The blinking panel lamp — **disabled by default**, it flips every few seconds on its own |

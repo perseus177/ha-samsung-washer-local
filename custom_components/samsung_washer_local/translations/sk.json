@@ -56,7 +56,7 @@
         "name": "Detská zámka"
       },
       "add_wash_available": {
-        "name": "AddWash dostupné"
+        "name": "Pridanie bielizne povolené programom"
       },
       "alarm": {
         "name": "Porucha"
@@ -68,10 +68,10 @@
         "name": "Odložený štart"
       },
       "add_wash_set": {
-        "name": "AddWash"
+        "name": "Upozornenie na pridanie bielizne – zapnuté"
       },
       "add_wash_indicator": {
-        "name": "AddWash kontrolka"
+        "name": "Pridanie bielizne možné teraz (kontrolka)"
       }
     },
     "button": {
