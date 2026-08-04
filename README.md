@@ -31,6 +31,7 @@ entities, so no YAML is needed for the common case:
 
 | Entity | |
 |---|---|
+| `binary_sensor` **0. Remote control** | Read-only, and first in the section because it is the condition for the rest of it. Only the panel button switches it. |
 | `select` **1. Programme** | The programmes *this* appliance advertises. Starts on whatever the dial says, so it means something untouched. |
 | `select` **2. Water temperature**, **3. Rinse cycles**, **4. Spin speed** | **Only what the chosen programme allows.** Pick Drum Clean and the temperature list becomes `60` alone; pick Rinse + Spin and the temperature select goes unavailable, because that programme has none. |
 | `select` **5. Laundry Out reminder** | The one that writes straight away, since the appliance takes this reminder on its own. Numbered with the rest because it is the last thing chosen before a wash. |
@@ -38,7 +39,8 @@ entities, so no YAML is needed for the common case:
 | `switch` **6a / 6b / 6c** | *When rinsing starts*, *when the final rinse starts*, *when spinning starts* — which moments the alarm fires at. Unavailable while 6 is off, exactly as the app greys its checkboxes out. |
 | `button` **7. Start selected programme** | Sends 1–4. Not the same as plain **Start / resume**, which writes only `Run` — that one resumes a paused cycle, which this one deliberately will not do. |
 
-**The whole section is disabled while Remote Control is switched off at the appliance.** That
+**The whole section is disabled while Remote Control is switched off at the appliance** — which
+is why it sits at the top of it, as 0. That
 is the appliance declining to be driven — it will not take a setting, it will not start, and
 within minutes it leaves the network altogether — so offering a dropdown that cannot be
 applied, still showing the last value it happened to see, would be a lie about the state of

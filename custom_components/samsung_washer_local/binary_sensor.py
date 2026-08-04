@@ -47,9 +47,14 @@ BINARY_SENSORS: tuple[WasherBinarySensorDescription, ...] = (
         device_class=BinarySensorDeviceClass.POWER,
         value_fn=lambda state: None if state.power is None else state.power == "On",
     ),
+    # Numbered 0 and grouped with the configuration entities, because it is the condition
+    # for all of them: while this is off the appliance takes no setting and starts nothing, so
+    # the rest of the section is disabled and this says why. Read-only - only the panel button
+    # switches it, and by the time it is off the appliance is usually off the network too.
     WasherBinarySensorDescription(
         key="remote_control",
         translation_key="remote_control",
+        entity_category=EntityCategory.CONFIG,
         value_fn=lambda state: state.remote_control_enabled,
     ),
     WasherBinarySensorDescription(
