@@ -62,39 +62,33 @@ class SamsungWasherEntity(CoordinatorEntity[SamsungWasherCoordinator]):
         )
 
 
-class SamsungWasherConfigEntity(SamsungWasherEntity):
-    """Something that configures the next wash - the numbered selects, switches and button.
+class SamsungWasherWritableEntity(SamsungWasherEntity):
+    """Anything that writes to the appliance - the numbered configuration, and the buttons.
 
-    Unavailable whenever Remote Control is switched off at the appliance, because that is the
-    appliance refusing to be driven at all: it will not take a setting, it will not start, and
-    within minutes it leaves the network entirely. Offering a dropdown that cannot be applied,
-    showing the last value it happened to see, is worse than showing nothing.
+    Unavailable whenever the appliance is unreachable, and whenever Remote Control is switched
+    off at the panel: that is the appliance declining to be driven at all. It will not take a
+    setting, it will not start, and within minutes it leaves the network entirely.
+
+    An earlier version kept the buttons always available, on the reasoning that they display
+    no value to misrepresent and that a press could report a clear error. That is true as far
+    as it goes, but a control that cannot possibly work is still noise on a dashboard, and the
+    inconsistency - greyed-out dropdowns beside a pressable Start - was worse than either rule
+    on its own.
 
     Only an explicit false disables. Before the first successful poll the flag is unknown, and
-    unknown is not a refusal - SamsungWasherEntity already withholds those entities anyway
-    while there is no data to show.
+    unknown is not a refusal; SamsungWasherEntity withholds those entities anyway while there
+    is no data.
+
+    One thing this cannot know: whether a *running* cycle can still be paused with Remote
+    Control off. The appliance stays on the network for a whole wash either way, but no write
+    was ever tried in that state, so the assumption here is that a refusal to be driven means
+    all of it. If a pause ever proves to work, this is the place to relax.
     """
 
     @property
     def available(self) -> bool:
-        """Return whether the appliance is currently willing to be configured."""
+        """Return whether the appliance is currently willing to be driven."""
         state = self.coordinator.data
-        return super().available and (state is None or state.remote_control_enabled is not False)
-
-
-class SamsungWasherControlEntity(SamsungWasherEntity):
-    """A stateless action on the appliance as it stands - Start, Pause, Cancel.
-
-    These stay available even when the appliance is away, and deliberately so: it is off the
-    network most of the time it is idle, and hiding the buttons then would be more confusing
-    than letting a press report a clear "not reachable" error.
-
-    Only for entities that display nothing. Anything showing a value read from the appliance
-    belongs to SamsungWasherEntity or SamsungWasherConfigEntity, or it would present the last
-    value it saw as though it were current.
-    """
-
-    @property
-    def available(self) -> bool:
-        """Return True - these are always offered."""
-        return True
+        return super().available and (
+            state is None or state.remote_control_enabled is not False
+        )

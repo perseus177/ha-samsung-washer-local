@@ -21,7 +21,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import SamsungWasherConfigEntry
 from .const import STATE_PAUSE, STATE_RUN
 from .coordinator import SamsungWasherCoordinator
-from .entity import SamsungWasherConfigEntity, SamsungWasherControlEntity
+from .entity import SamsungWasherWritableEntity
 
 PARALLEL_UPDATES = 1
 
@@ -79,15 +79,12 @@ async def async_setup_entry(
     """Set up the buttons."""
     coordinator = entry.runtime_data
     async_add_entities(
-        WasherStartSelectedButton(coordinator, description)
-        if description.starts_selection
-        else WasherButton(coordinator, description)
-        for description in BUTTONS
+        WasherButton(coordinator, description) for description in BUTTONS
     )
 
 
-class WasherButton(SamsungWasherControlEntity, ButtonEntity):
-    """Start, Pause or Cancel - always offered, whatever the appliance is doing."""
+class WasherButton(SamsungWasherWritableEntity, ButtonEntity):
+    """One button: start the selection, start or resume, pause, or cancel."""
 
     entity_description: WasherButtonDescription
 
@@ -101,34 +98,12 @@ class WasherButton(SamsungWasherControlEntity, ButtonEntity):
         self.entity_description = description
 
     async def async_press(self) -> None:
-        """Write the operation state, or cancel the cycle."""
+        """Start the selection, write the operation state, or cancel the cycle."""
+        if self.entity_description.starts_selection:
+            await self.coordinator.async_start_selected()
+            return
         target = self.entity_description.target_state
         if target is None:
             await self.coordinator.async_cancel()
         else:
             await self.coordinator.async_set_operation_state(target)
-
-
-class WasherStartSelectedButton(SamsungWasherConfigEntity, ButtonEntity):
-    """Start the selection - unavailable with the rest of the configuration.
-
-    Sits in the numbered sequence, so it follows the same rule as the selects above it: with
-    Remote Control off the appliance will not start anything, and a button that cannot work
-    should not invite a press. The service keeps its own explicit check and message, for
-    automations that call it regardless.
-    """
-
-    entity_description: WasherButtonDescription
-
-    def __init__(
-        self,
-        coordinator: SamsungWasherCoordinator,
-        description: WasherButtonDescription,
-    ) -> None:
-        """Initialise the button."""
-        super().__init__(coordinator, description.key)
-        self.entity_description = description
-
-    async def async_press(self) -> None:
-        """Start whatever the selects are pointing at."""
-        await self.coordinator.async_start_selected()

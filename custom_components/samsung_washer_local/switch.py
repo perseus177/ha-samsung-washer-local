@@ -39,7 +39,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import SamsungWasherConfigEntry
 from .const import ADD_WASH_ALL, ADD_WASH_DESCRIPTION, ADD_WASH_NONE
 from .coordinator import SamsungWasherCoordinator
-from .entity import SamsungWasherConfigEntity
+from .entity import SamsungWasherWritableEntity
 
 PARALLEL_UPDATES = 1
 
@@ -90,7 +90,7 @@ async def async_setup_entry(
     )
 
 
-class WasherAddWashSwitch(SamsungWasherConfigEntity, SwitchEntity):
+class WasherAddWashSwitch(SamsungWasherWritableEntity, SwitchEntity):
     """The Add wash alarm, or one of the moments it fires at."""
 
     entity_description: WasherSwitchDescription

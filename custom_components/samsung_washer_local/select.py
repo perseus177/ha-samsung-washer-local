@@ -27,7 +27,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import SamsungWasherConfigEntry
 from .const import COURSE_MAP, LAUNDRY_OUT_VALUES
 from .coordinator import SamsungWasherCoordinator
-from .entity import SamsungWasherConfigEntity
+from .entity import SamsungWasherWritableEntity
 
 PARALLEL_UPDATES = 1
 
@@ -50,7 +50,7 @@ async def async_setup_entry(
     )
 
 
-class WasherLaundryOutSelect(SamsungWasherConfigEntity, SelectEntity):
+class WasherLaundryOutSelect(SamsungWasherWritableEntity, SelectEntity):
     """The Laundry Out reminder interval in minutes, 0 meaning off.
 
     Numbered and categorised with the four above so the five read as the sequence the app
@@ -80,7 +80,7 @@ class WasherLaundryOutSelect(SamsungWasherConfigEntity, SelectEntity):
         await self.coordinator.async_set_laundry_out_time(option)
 
 
-class WasherProgrammeSelect(SamsungWasherConfigEntity, SelectEntity):
+class WasherProgrammeSelect(SamsungWasherWritableEntity, SelectEntity):
     """Which programme the Start selected programme button will run.
 
     Its option list is the programmes the appliance itself advertises, so a model with a
@@ -119,7 +119,7 @@ class WasherProgrammeSelect(SamsungWasherConfigEntity, SelectEntity):
             self.coordinator.set_pending_programme(option)
 
 
-class WasherSettingSelect(SamsungWasherConfigEntity, SelectEntity):
+class WasherSettingSelect(SamsungWasherWritableEntity, SelectEntity):
     """Temperature, rinse count or spin speed for the next start.
 
     Unavailable when the chosen programme does not offer the setting at all - Rinse + Spin
