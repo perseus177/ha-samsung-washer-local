@@ -97,6 +97,15 @@ data:
   temperature: "60"          # optional; omitted means the programme's own default
 ```
 
+**Omitting a setting is the better request, not just a shorter one.** On a TP6X_WW6500 a body
+that carries the `Washer` block above loads the programme and its settings, beeps, and stays
+`Ready` — the `Run` is dropped, and the appliance has to be started a second time. So nothing
+is sent for a setting left unspecified, and the **7. Start selected programme** button leaves
+out any of 2–4 still sitting on the programme's own default, which the appliance would apply
+by itself anyway. When a start does end up selected-but-not-running, a bare `Run` write — the
+same one the plain Start button makes — is sent to finish the job, and only then, never on
+spec: the appliance has just said it is not running.
+
 **Which settings a programme allows is read from the appliance, not guessed.**
 `supportedOptions` carries, per programme, a bitmap of allowed temperatures, rinse counts and
 spin speeds plus its own default, and the Programme sensor exposes the decoded set for the

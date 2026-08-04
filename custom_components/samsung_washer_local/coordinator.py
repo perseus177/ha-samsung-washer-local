@@ -240,18 +240,29 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
         self.async_update_listeners()
 
     async def async_start_selected(self) -> None:
-        """Start the programme the selects are pointing at."""
+        """Start the programme the selects are pointing at.
+
+        A setting still sitting on the programme's own default is not sent. The appliance
+        applies that default itself when nothing arrives for it, so the request would say
+        nothing new - and it is not free: a start whose body carries settings at all loads
+        the programme but leaves the appliance Ready (see async_start_cycle), which costs a
+        second write to recover from. Someone starting a programme without touching the
+        three settings therefore gets the plain, measured-good request.
+        """
         code = self.selected_programme()
         if not code:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="nothing_selected",
             )
+        chosen = {field: self.pending(field) for field in ("temperature", "rinse", "spin")}
         await self.async_start_cycle(
             code,
-            temperature=self.pending("temperature"),
-            rinse=self.pending("rinse"),
-            spin=self.pending("spin"),
+            **{
+                field: value
+                for field, value in chosen.items()
+                if value is not None and value != self.default_for(field)
+            },
         )
 
     def _resolve_programme(self, programme: str) -> str:

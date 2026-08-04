@@ -605,6 +605,15 @@ class SamsungWasherClient:
         defaults, which is what it does for the app as well.
 
         Verified by reading back, because a 204 means nothing on this transport.
+
+        Measured on a TP6X_WW6500 on 2026-08-04: when the body carries a ``Washer`` block,
+        the appliance loads the programme and the settings, beeps, and stays Ready - the
+        Run is dropped. The same request without that block starts the cycle. Since a bare
+        Operation.state write is the ordinary Start button and does work, a start that ends
+        up selected-but-not-running is followed by exactly that, rather than reported as a
+        failure the user can only fix by pressing again. It is not sent speculatively: on
+        the appliance's own admission it is already running, and asking a running machine
+        to Run again is not something to do on a guess.
         """
         body: dict[str, Any] = {
             "Mode": {"options": [f"Course_{course_code.upper()}"]},
@@ -632,10 +641,20 @@ class SamsungWasherClient:
                 f"the appliance ignored the programme (it reports {started},"
                 f" state {state})"
             )
-        if state != STATE_RUN:
+        if state == STATE_RUN:
+            return
+
+        _LOGGER.debug(
+            "%s loaded %s but stayed %s; starting it with a state write",
+            self._host,
+            course_code,
+            state,
+        )
+        reported = await self._async_write_state(STATE_RUN)
+        if reported != STATE_RUN:
             raise WasherError(
                 f"the programme was selected but the appliance did not start it"
-                f" (it reports {state})"
+                f" (it reports {reported})"
             )
 
     async def async_set_add_wash(self, value: str) -> None:
