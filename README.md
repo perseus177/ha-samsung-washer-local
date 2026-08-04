@@ -112,8 +112,18 @@ spin speeds plus its own default, and the Programme sensor exposes the decoded s
 currently selected programme as `allowed_temperature`, `allowed_rinse`, `allowed_spin` and
 the matching `default_*` attributes. The service refuses a value the programme does not
 allow, naming the ones it does — worth doing, because the appliance itself would answer an
-impossible combination with a silent `204`. On a TP6X_WW6500 Drum Clean allows exactly 60 °C,
-400 rpm and 2 rinses, while Rinse + Spin has no temperature at all.
+impossible combination with a silent `204`. On a TP6X_WW6500 Drum Clean allows exactly one
+temperature, 400 rpm and 2 rinses, while Rinse + Spin has no temperature at all.
+
+**Drum Clean is reported as 70 °C, which is not what the appliance says.** It answers `60`,
+because `waterTemperature` has no `70` token to answer with — but the panel prints 70 °C and
+so does the official app, which forces the substitution itself whenever the programme is one
+of the Drum Clean family and the appliance lists any temperature above 60. That condition is
+implemented here rather than a per-model table, so a washer whose list stops at 60 keeps
+reporting 60. It applies to the temperature sensor, the temperature select and the Programme
+sensor's `allowed_temperature` / `default_temperature`, so one number appears everywhere; the
+appliance's own answer stays on the sensor's `raw` attribute, a write still sends `60`, and
+`start_cycle` accepts either `"70"` or `"60"`.
 
 Two conditions are checked before anything is sent, because in both cases the appliance's
 own refusal would point at the wrong thing:

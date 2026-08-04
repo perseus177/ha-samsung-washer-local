@@ -25,6 +25,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import SamsungWasherConfigEntry
+from .api import shown_temperature, written_temperature
 from .const import COURSE_MAP, LAUNDRY_OUT_VALUES
 from .coordinator import SamsungWasherCoordinator
 from .entity import SamsungWasherWritableEntity
@@ -124,6 +125,10 @@ class WasherSettingSelect(SamsungWasherWritableEntity, SelectEntity):
 
     Unavailable when the chosen programme does not offer the setting at all - Rinse + Spin
     has no temperature, and saying so is better than showing an empty dropdown.
+
+    Temperatures are offered as the panel words them, which on Drum Clean means 70 where the
+    appliance says 60 (const.py has the why). The choice is translated back before it is
+    remembered, so what travels to the appliance is still its own 60.
     """
 
     _attr_entity_category = EntityCategory.CONFIG
@@ -134,6 +139,16 @@ class WasherSettingSelect(SamsungWasherWritableEntity, SelectEntity):
         self._field = field
         self._attr_translation_key = f"selected_{field}"
 
+    def _shown(self, value: str | None) -> str | None:
+        """Return a value as it should be offered."""
+        if self._field != "temperature":
+            return value
+        return shown_temperature(
+            self.coordinator.selected_programme(),
+            value,
+            self.coordinator.supported_temperatures(),
+        )
+
     @property
     def available(self) -> bool:
         """Return whether the chosen programme offers this setting."""
@@ -142,13 +157,23 @@ class WasherSettingSelect(SamsungWasherWritableEntity, SelectEntity):
     @property
     def options(self) -> list[str]:
         """Return only what the chosen programme allows."""
-        return self.coordinator.allowed_for(self._field)
+        return [
+            shown
+            for shown in (self._shown(value) for value in self.coordinator.allowed_for(self._field))
+            if shown is not None
+        ]
 
     @property
     def current_option(self) -> str | None:
         """Return the chosen value, or the programme's default."""
-        return self.coordinator.pending(self._field)
+        return self._shown(self.coordinator.pending(self._field))
 
     async def async_select_option(self, option: str) -> None:
-        """Remember the value for the next start."""
+        """Remember the value for the next start, in the appliance's own terms."""
+        if self._field == "temperature":
+            option = written_temperature(
+                self.coordinator.selected_programme(),
+                option,
+                self.coordinator.supported_temperatures(),
+            ) or option
         self.coordinator.set_pending(self._field, option)

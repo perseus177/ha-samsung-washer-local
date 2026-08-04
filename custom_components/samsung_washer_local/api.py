@@ -37,6 +37,10 @@ from typing import Any
 from .const import (
     CANCEL_STATE,
     COURSE_MAP,
+    DRUM_CLEAN_HIGH_TOKENS,
+    DRUM_CLEAN_PROGRAMMES,
+    DRUM_CLEAN_TEMPERATURE_RAW,
+    DRUM_CLEAN_TEMPERATURE_SHOWN,
     MIN_MAX_OPTION_TYPES,
     OPTION_FIELDS,
     START_PATH,
@@ -244,6 +248,41 @@ def _option(options: list[str], prefix: str) -> str | None:
         if option.startswith(prefix):
             return option[len(prefix) :]
     return None
+
+
+def _drum_clean_runs_hot(course_code: str | None, supported: list[str]) -> bool:
+    """Whether this programme's 60 degrees is the 70 the panel prints.
+
+    Samsung's own condition, not an invention here - see DRUM_CLEAN_PROGRAMMES in const.py
+    for where it comes from. It asks two things: is this the Drum Clean family, and does the
+    appliance list a temperature above 60 at all. The second is what keeps it honest on
+    other models: a washer whose list stops at 60 has no hot drum clean to report.
+    """
+    if COURSE_MAP.get((course_code or "").upper()) not in DRUM_CLEAN_PROGRAMMES:
+        return False
+    return any(token in supported for token in DRUM_CLEAN_HIGH_TOKENS)
+
+
+def shown_temperature(
+    course_code: str | None, value: str | None, supported: list[str]
+) -> str | None:
+    """Return the temperature to show for a programme, 60 becoming 70 on Drum Clean."""
+    if value == DRUM_CLEAN_TEMPERATURE_RAW and _drum_clean_runs_hot(course_code, supported):
+        return DRUM_CLEAN_TEMPERATURE_SHOWN
+    return value
+
+
+def written_temperature(
+    course_code: str | None, value: str | None, supported: list[str]
+) -> str | None:
+    """Return what to write for a shown temperature - the appliance only knows 60."""
+    if (
+        value == DRUM_CLEAN_TEMPERATURE_SHOWN
+        and _drum_clean_runs_hot(course_code, supported)
+        and DRUM_CLEAN_TEMPERATURE_SHOWN not in supported
+    ):
+        return DRUM_CLEAN_TEMPERATURE_RAW
+    return value
 
 
 def _parse_course_options(

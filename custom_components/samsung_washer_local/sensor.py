@@ -25,7 +25,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import SamsungWasherConfigEntry
-from .api import WasherState
+from .api import WasherState, shown_temperature
 from .const import COURSE_OPTIONS, PROGRESS_OPTIONS, STATE_OPTIONS, UNKNOWN
 from .coordinator import SamsungWasherCoordinator
 from .entity import SamsungWasherEntity
@@ -78,6 +78,21 @@ def _finish_time(state: WasherState) -> datetime | None:
     if state.remaining_minutes is None or state.state not in ("Run", "Pause"):
         return None
     return dt_util.utcnow() + timedelta(minutes=state.remaining_minutes)
+
+
+def _water_temperature(state: WasherState) -> int | None:
+    """Return the wash temperature, as the panel and the official app state it.
+
+    Which is 70 on Drum Clean, where the appliance can only say 60 - the reasoning and the
+    source are in const.py. The reported value is unchanged for every other programme, and
+    the appliance's own answer stays visible on the raw attribute either way.
+    """
+    shown = shown_temperature(
+        state.course_code, state.water_temperature_raw, state.supported_water_temperature
+    )
+    if shown != state.water_temperature_raw:
+        return int(shown) if shown is not None else None
+    return state.water_temperature
 
 
 def _attrs(**values: object) -> dict[str, str] | None:
@@ -148,7 +163,7 @@ SENSORS: tuple[WasherSensorDescription, ...] = (
         translation_key="water_temperature",
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        value_fn=lambda state: state.water_temperature,
+        value_fn=_water_temperature,
     ),
     WasherSensorDescription(
         key="spin_level",
@@ -240,11 +255,26 @@ class WasherSensor(SamsungWasherEntity, SensorEntity):
             for field, values in (
                 state.course_options.get((state.course_code or "").upper(), {}) or {}
             ).items():
-                allowed = values.get("allowed") or []
+                allowed = [str(value) for value in (values.get("allowed") or [])]
+                default = values.get("default")
+                default = None if default is None else str(default)
+                if field == "temperature":
+                    # The same 60-is-really-70 mapping as the sensor's own value, so what
+                    # these attributes list is what the selects offer and what start_cycle
+                    # takes - one story, not two.
+                    supported = state.supported_water_temperature
+                    allowed = [
+                        str(shown_temperature(state.course_code, value, supported))
+                        for value in allowed
+                    ]
+                    if default is not None:
+                        default = str(
+                            shown_temperature(state.course_code, default, supported)
+                        )
                 if allowed:
-                    attributes[f"allowed_{field}"] = ", ".join(str(v) for v in allowed)
-                if values.get("default") is not None:
-                    attributes[f"default_{field}"] = str(values["default"])
+                    attributes[f"allowed_{field}"] = ", ".join(allowed)
+                if default is not None:
+                    attributes[f"default_{field}"] = default
             return attributes or None
         if key == "water_temperature":
             # The appliance also reports "Cold" and "None", which a temperature sensor

@@ -84,6 +84,22 @@ START_PATH = "/devices/0"
 OPTION_TYPE_TEMPERATURE = 0x8
 OPTION_TYPE_RINSE = 0x9
 OPTION_TYPE_SPIN = 0xA
+
+# Drum Clean runs at 70 degrees, and both the panel and the official app say so - but the
+# waterTemperature slot has no "70" token, so the appliance reports the nearest one it does
+# have, 60. Samsung resolves this in the app rather than in the appliance, and the plugin
+# spells the rule out: isExceptTempCondidion / isEcoDrumClean in washer.js (~8782-8817) turn
+# a 60 into the 70 string when the programme is one of the Drum Clean family AND the
+# appliance's supportedWaterTemperature carries any of these high tokens - a stand-in for
+# "this model has a heater that goes there". The comment on isEcoDrumClean says as much:
+# "온도 70도 표기를 위한 함수" - a function for displaying 70 degrees. Selecting the programme
+# forces it too (setTemp = "70" at ~16701, and checkSpecialEcodrum by model code).
+# Reported as 70 here for the same reason: 60 is the transport's limitation, not the wash.
+# The raw value stays on the sensor's raw attribute, and a write still sends 60.
+DRUM_CLEAN_PROGRAMMES = ("drum_clean",)
+DRUM_CLEAN_HIGH_TOKENS = ("70", "75", "80", "90", "95")
+DRUM_CLEAN_TEMPERATURE_RAW = "60"
+DRUM_CLEAN_TEMPERATURE_SHOWN = "70"
 # These two carry a min and a max index in the low byte instead of a bitmap. Only top
 # loaders report them, so they are decoded but not offered as service fields.
 OPTION_TYPE_WATER_HEIGHT = 0x6

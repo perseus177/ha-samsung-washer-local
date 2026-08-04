@@ -19,6 +19,8 @@ from .api import (
     WasherError,
     WasherOfflineError,
     WasherState,
+    shown_temperature,
+    written_temperature,
 )
 from .const import COURSE_MAP, DOMAIN, ENERGY_INTERVAL, STATE_READY
 
@@ -203,6 +205,10 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
         options = (self.data.course_options if self.data else {}).get(code, {})
         return list((options.get(field) or {}).get("allowed") or [])
 
+    def supported_temperatures(self) -> list[str]:
+        """Return the temperature tokens the appliance says it has."""
+        return list(self.data.supported_water_temperature if self.data else [])
+
     def default_for(self, field: str) -> str | None:
         """Return the selected programme's own default for one setting."""
         code = (self.selected_programme() or "").upper()
@@ -300,8 +306,22 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
         for field, value in settings.items():
             if value is None:
                 continue
+            if field == "temperature":
+                # 70 is what the panel, the app and this integration call Drum Clean's
+                # temperature; the appliance calls it 60. Accept either from a script.
+                value = written_temperature(
+                    code, str(value), self.supported_temperatures()
+                )
             allowed = (allowed_for_course.get(field) or {}).get("allowed") or []
             if allowed and str(value) not in allowed:
+                offered = allowed
+                if field == "temperature":
+                    # Name them the way the rest of the integration does, or the message
+                    # would tell someone to use a 60 the dropdown does not even show.
+                    offered = [
+                        str(shown_temperature(code, value, self.supported_temperatures()))
+                        for value in allowed
+                    ]
                 raise HomeAssistantError(
                     translation_domain=DOMAIN,
                     translation_key="option_not_allowed",
@@ -309,7 +329,7 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
                         "field": field,
                         "value": str(value),
                         "programme": COURSE_MAP.get(code, code),
-                        "allowed": ", ".join(allowed),
+                        "allowed": ", ".join(offered),
                     },
                 )
             checked[field] = str(value)
