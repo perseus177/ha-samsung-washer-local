@@ -90,12 +90,14 @@ is the request the official app makes, and the one this service makes:
 
 ```yaml
 action: samsung_washer_local.start_cycle
-target:
-  device_id: <your washer>
 data:
+  device_id: <your washer>
   programme: drum_clean      # or a raw course code, e.g. "63"
   temperature: "60"          # optional; omitted means the programme's own default
 ```
+
+(`target: device_id:` works too — Home Assistant folds a target into the service data — so
+automations written before 1.3.1 need no change.)
 
 **Omitting a setting is the better request, not just a shorter one.** On a TP6X_WW6500 a body
 that carries the `Washer` block above loads the programme and its settings, beeps, and stays

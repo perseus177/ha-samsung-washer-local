@@ -1,8 +1,17 @@
+# The appliance is addressed by device, not by entity: a start is one action on the whole
+# machine rather than something an entity holds. That was declared as a target with a device
+# filter, which hassfest rejects - "services do not support device filters on target, use a
+# device selector instead" - so the device is a field with a device selector on it. The call
+# shape does not change: Home Assistant folds `target:` into the service data, so automations
+# written against the old declaration keep working.
 start_cycle:
-  target:
-    device:
-      integration: samsung_washer_local
   fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          filter:
+            - integration: samsung_washer_local
     programme:
       required: true
       example: drum_clean
