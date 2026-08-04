@@ -147,6 +147,30 @@ own refusal would point at the wrong thing:
 - **The appliance has to be idle**, or a start would resume the programme already loaded
   rather than the one asked for.
 
+### Fault codes, with what they mean
+
+When something goes wrong the appliance puts a code on its panel and into `Alarms`. The **Fault
+code** sensor reads `none` almost all the time, and otherwise carries that code — `4C`, `5E`,
+`UE` — with two attributes: `meaning`, one line on what the appliance is telling you, and
+`what_to_do`, the thing to try. So `4C` reads *"No water coming in — the fill timed out"* and
+*"Check the tap is open, the inlet hose is not kinked and its filter is not blocked…"*, and
+nobody has to go looking for the manual.
+
+About 150 codes are covered, which is every one the appliance's own app knows. They collapse
+into some fifty distinct meanings, because the same fault appears with an `E` and a `C`
+spelling (`4E` and `4C`), in lower case (`tE`, `oF`, `dS`) and with per-variant suffixes; the
+lookup is case-insensitive and the aliases share one explanation. The reminders live in the
+same table: `DrumClean` (time to clean the drum), `FilterAlarm` (water left in the drain
+filter), `FreezeProtection`, `DispenserOpen`, `CL` (child lock).
+
+**The wording is this integration's own.** What a code means is a fact about the appliance and
+that is what these lines describe, but the app's own strings belong to Samsung and are not
+shipped here. Where a code turns out to be one this integration does not know, the sensor still
+publishes the code and says as much — an unknown code is exactly what a service call asks for.
+
+Deliberately not an enum sensor: an enum raises when handed a value outside its options, and
+the appliance certainly knows codes this table does not.
+
 ### The Add wash alarm
 
 In the appliance's own words: *"If you need to add clothes just for a rinse or spin, or want
@@ -290,6 +314,7 @@ and restart Home Assistant.
 | `sensor` Finishes at | Timestamp, derived from the remaining time; only while running |
 | `sensor` Water temperature, Spin speed, Rinse cycles | Read-only |
 | `binary_sensor` Power, Remote control, Child lock, Alarm | Alarm carries the appliance's error codes in an attribute |
+| `sensor` **Fault code** | `none`, or the code the panel is showing — with what it means and what to do about it in the attributes. See below |
 | `binary_sensor` Add wash alarm enabled / allowed by programme / possible now | Three different things — see below |
 | `binary_sensor` Prewash, Delayed start | Read from `supportedProgress`, see below |
 | `binary_sensor` AddWash | The feature's own on/off (`AddWashSet`) |

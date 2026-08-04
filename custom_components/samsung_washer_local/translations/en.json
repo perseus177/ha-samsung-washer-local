@@ -187,6 +187,9 @@
       "rinse_cycles": {
         "name": "Rinse cycles"
       },
+      "fault": {
+        "name": "Fault code"
+      },
       "diagnosis": {
         "name": "Diagnosis"
       },

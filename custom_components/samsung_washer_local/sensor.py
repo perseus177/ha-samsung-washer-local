@@ -26,7 +26,14 @@ from homeassistant.util import dt as dt_util
 
 from . import SamsungWasherConfigEntry
 from .api import WasherState, shown_temperature
-from .const import COURSE_OPTIONS, PROGRESS_OPTIONS, STATE_OPTIONS, UNKNOWN
+from .const import (
+    COURSE_OPTIONS,
+    FAULT_CODES,
+    FAULT_NONE,
+    PROGRESS_OPTIONS,
+    STATE_OPTIONS,
+    UNKNOWN,
+)
 from .coordinator import SamsungWasherCoordinator
 from .entity import SamsungWasherEntity
 
@@ -176,6 +183,17 @@ SENSORS: tuple[WasherSensorDescription, ...] = (
         translation_key="rinse_cycles",
         value_fn=lambda state: state.rinse_cycles,
     ),
+    # The code the panel would be showing, with what it means in the attributes. Deliberately
+    # NOT an enum: the appliance knows codes this integration does not, and an enum sensor
+    # raises on a value outside its options - which is how the Weightsensing phase took the
+    # progress sensor down. An unknown code is passed through and simply has no meaning to
+    # offer, which is still better than no code at all when ringing service.
+    WasherSensorDescription(
+        key="fault",
+        translation_key="fault",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda state: state.fault_code or FAULT_NONE,
+    ),
     WasherSensorDescription(
         key="diagnosis",
         translation_key="diagnosis",
@@ -276,6 +294,24 @@ class WasherSensor(SamsungWasherEntity, SensorEntity):
                 if default is not None:
                     attributes[f"default_{field}"] = default
             return attributes or None
+        if key == "fault":
+            # What the code means, so nobody has to go and find the manual. The wording is
+            # this integration's own - see FAULT_MEANINGS in const.py - and an unrecognised
+            # code says so rather than guessing.
+            if state.fault_code is None:
+                return None
+            meaning, action = FAULT_CODES.get(
+                state.fault_code.upper(),
+                (
+                    "Not a code this integration knows",
+                    "Look it up for the model, or quote it to service.",
+                ),
+            )
+            return _attrs(
+                meaning=meaning,
+                what_to_do=action,
+                alarms=[str(alarm) for alarm in state.alarms],
+            )
         if key == "water_temperature":
             # The appliance also reports "Cold" and "None", which a temperature sensor
             # cannot hold; without this the setting would simply vanish from the UI.

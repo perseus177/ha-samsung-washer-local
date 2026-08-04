@@ -117,6 +117,9 @@ class WasherState:
     # become visible from outside.
     supported_progress: list[str] = field(default_factory=list)
     alarms: list[Any] = field(default_factory=list)
+    # The code of the most recent alarm, as the panel shows it - see _fault_code. None when
+    # the appliance reports nothing wrong, which is nearly always.
+    fault_code: str | None = None
     model_id: str | None = None
     serial_number: str | None = None
     software_version: str | None = None
@@ -248,6 +251,28 @@ def _option(options: list[str], prefix: str) -> str | None:
         if option.startswith(prefix):
             return option[len(prefix) :]
     return None
+
+
+def _fault_code(alarms: list[Any]) -> str | None:
+    """Return the code of the most recent alarm, in the form the panel shows it.
+
+    The appliance carries a list and adds to the end, so the last entry is the current one -
+    which is how its own app reads it too. Two shapes turn up in that app's handling: a plain
+    name for the reminders and warnings (``DrumClean``, ``FilterAlarm``), and a prefixed form
+    for a real fault, where only the part after the underscore is the code on the panel.
+
+    Anything unrecognisable is returned as it arrived rather than dropped: an unknown code is
+    still the one thing a service call will ask for.
+    """
+    codes = [
+        alarm.get("code")
+        for alarm in alarms
+        if isinstance(alarm, dict) and alarm.get("code")
+    ]
+    if not codes:
+        return None
+    code = str(codes[-1])
+    return code.rsplit("_", 1)[-1] if "_" in code else code
 
 
 def _drum_clean_runs_hot(course_code: str | None, supported: list[str]) -> bool:
@@ -533,6 +558,7 @@ class SamsungWasherClient:
             add_wash_available=None if add_wash is None else add_wash != "0",
             remote_control_enabled=configuration.get("remoteControlEnabled"),
             alarms=alarms if isinstance(alarms, list) else [],
+            fault_code=_fault_code(alarms if isinstance(alarms, list) else []),
             water_temperature_raw=washer.get("waterTemperature"),
             spin_level_raw=washer.get("spinLevel"),
             add_wash_available_raw=add_wash,

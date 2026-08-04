@@ -183,6 +183,227 @@ STATE_OPTIONS = ["ready", "run", "pause", UNKNOWN]
 # the laundry is taken out. 0 disables it. Writable through /devices/0/mode.
 LAUNDRY_OUT_VALUES = ["0", "30", "60", "90"]
 
+# What the appliance's fault codes mean, so a code blinking on the panel does not send anyone
+# to the manual. The grouping is the appliance's own: its app carries one dictionary of about
+# 150 codes that collapse into these meanings, aliases and all - the same fault appears with
+# an E and a C spelling (4E/4C), lower case (tE, oF, dS) and per-variant suffixes.
+#
+# The wording is deliberately ours. The app's own strings are Samsung's and are not shipped
+# here; what a code means is a fact about the appliance, and that is what these describe. They
+# are short on purpose: enough to know whether to open the tap, clean the filter or call
+# someone. The codes are matched case-insensitively.
+#
+# "Needs a service visit" entries are the ones the app also gives up on: an internal sensor or
+# board has failed and there is nothing to do at home beyond one power cycle. The rest are
+# things the owner can act on.
+_SERVICE = "Nothing to do at home beyond one power cycle: switch off, wait 2-3 minutes, switch on and try again. If it comes back, it needs a service visit."
+
+FAULT_MEANINGS: tuple[tuple[tuple[str, ...], str, str], ...] = (
+    # Things the owner can fix.
+    (
+        ("4E", "4E1", "4C", "4C1", "NF"),
+        "No water coming in - the fill timed out",
+        "Check the tap is open, the inlet hose is not kinked and its filter is not blocked. In"
+        " winter check the hose and tap are not frozen. Then press Start/Pause to carry on.",
+    ),
+    (
+        ("4E2", "4C2", "NF1"),
+        "Incoming water is too hot for the fabric",
+        "Check the cold and hot inlet hoses are not swapped, then press Start/Pause.",
+    ),
+    (
+        ("5E", "5C"),
+        "The water is not draining",
+        "Clean the drain filter and check the drain hose is not blocked, kinked or frozen. Then"
+        " press Start/Pause.",
+    ),
+    (
+        ("UE", "UB"),
+        "The load is unbalanced, so it will not spin",
+        "Redistribute the laundry, or add a little more if the drum is nearly empty, then press"
+        " Start/Pause. Waterproof items cause this too - they trap water on one side.",
+    ),
+    (
+        ("UB1",),
+        "Waterproof items in the drum, so it will not spin",
+        "Take them out: water cannot escape through them, so they stay on one side and the drum"
+        " cannot balance.",
+    ),
+    (
+        ("dS", "DS", "dE", "DE", "dC", "DC"),
+        "The door is open",
+        "Close it firmly, then press Start/Pause if the cycle does not carry on by itself.",
+    ),
+    (
+        ("DDC",),
+        "The AddWash door is open",
+        "Close it, then press Start/Pause.",
+    ),
+    (
+        ("DC4",),
+        "The inner door is open",
+        "Close it firmly, then press Start/Pause. If it keeps reporting this, it needs a"
+        " service visit.",
+    ),
+    (
+        ("SDE", "SDC"),
+        "The automatic detergent drawer is open",
+        "Close the detergent compartment.",
+    ),
+    (
+        ("CL",),
+        "Child lock is on",
+        "Switch it off at the panel. Nothing can be started or cancelled while it is on.",
+    ),
+    (
+        ("NC",),
+        "The lint filter is missing",
+        "Put it back in its slot.",
+    ),
+    (
+        ("NC2",),
+        "The heat exchanger filter is missing",
+        "Put it back in its slot.",
+    ),
+    (
+        ("LE", "LC", "LE1", "LC1"),
+        "A water leak was detected",
+        "Check around the drain filter and the hoses. Switch off and on after 2-3 minutes and"
+        " try again; if it returns, it needs a service visit.",
+    ),
+    (
+        ("OE", "oF", "OF", "OC"),
+        "Overfilling - water kept coming in",
+        "Close the tap and call service. Do not run it in this state.",
+    ),
+    (
+        ("CE", "CC"),
+        "The drum or the water is too hot for the next step",
+        "Check the cold and hot inlet hoses are not swapped, then press Start/Pause.",
+    ),
+    (
+        ("E2", "BE2", "bE2", "C2", "BC2"),
+        "A button is stuck",
+        "Check nothing is resting on the panel, then switch off and on.",
+    ),
+    (
+        ("2E", "2C", "UC", "9E1", "9E2", "9C1", "9C2"),
+        "Mains supply out of range",
+        "Check the appliance is switched on at the socket and the supply is steady. If it"
+        " persists, it needs a service visit.",
+    ),
+    (
+        ("AE4", "AC4"),
+        "The Wi-Fi module is not answering the appliance",
+        "A network problem rather than a wash problem. Switch off and on after 2-3 minutes.",
+    ),
+    (
+        ("4E3", "4C3"),
+        "Diverter valve or cooling fan",
+        "This can happen below -10 C: leave it at room temperature for half an hour and try"
+        " again. Otherwise it needs a service visit.",
+    ),
+    # Sensors and boards - one power cycle, then service.
+    (("1E", "1C"), "Water level sensor", _SERVICE),
+    (
+        ("tE", "tE1", "TE", "TE1", "tC", "tC1", "TC", "TC1"),
+        "Wash temperature sensor",
+        _SERVICE,
+    ),
+    (("TE2", "tE2", "TC2"), "Drying air temperature sensor", _SERVICE),
+    (("TE3", "TC3"), "Drying duct temperature sensor", _SERVICE),
+    (("TE4", "TC4"), "Motor temperature sensor", _SERVICE),
+    (("TC5", "TE5"), "Compressor temperature sensor", _SERVICE),
+    (("TC6",), "Water jet temperature sensor", _SERVICE),
+    (("TC7",), "Heat exchanger inlet temperature sensor", _SERVICE),
+    (("TC8",), "Heat exchanger outlet temperature sensor", _SERVICE),
+    (("TCA",), "Compressor top temperature sensor", _SERVICE),
+    (
+        (
+            "3E", "3E1", "3E2", "3E3", "3E4", "BE", "3C", "3C1", "3C2", "3C3", "3C4", "3C5",
+            "3C6", "3C7", "3C8", "3C9", "BC", "3CP",
+        ),
+        "Motor",
+        _SERVICE,
+    ),
+    (("3CA",), "Compressor", _SERVICE),
+    (("PE", "PC"), "Clutch", _SERVICE),
+    (("FE", "FC", "FC3"), "Drying fan motor", _SERVICE),
+    (("HE", "HC"), "The heater is overheating", "Switch it off and call service."),
+    (("HE1", "HC1"), "Wash heater", _SERVICE),
+    (("HE2", "HC2"), "Drying heater", _SERVICE),
+    (
+        ("LO", "dE1", "DE1", "dC1", "DC1", "FL"),
+        "Door lock switch",
+        _SERVICE,
+    ),
+    (("dE2", "DE2", "dC2", "DC2"), "Door lock switch is reacting too often", _SERVICE),
+    (("DF",), "Door lock switch", "Switch it off and call service."),
+    (("DC3",), "AddWash door lock switch", _SERVICE),
+    (
+        (
+            "8E", "8E1", "8E2", "8C", "8C1", "8C2", "8CA1", "8CA2", "8CA3", "8CA4", "8CB1",
+            "8CB2", "8CB3", "8CB4",
+        ),
+        "Vibration sensor",
+        _SERVICE,
+    ),
+    (("6E", "6C", "6C1", "6C2", "6C3", "6C4", "6C5", "6C6", "6C7"),
+     "Automatic detergent dispenser motor", _SERVICE),
+    (("AE", "AC"), "Communication with the display", _SERVICE),
+    (("AE3", "AC3"), "Zigbee communication", _SERVICE),
+    (("AE5", "AC5"), "Communication between the display and the main board", _SERVICE),
+    (("AE6", "AC6"), "Communication between the inverter and the main board", _SERVICE),
+    (("AC7",), "Communication between the boards", _SERVICE),
+    (("ACA",), "Communication with the compressor inverter", _SERVICE),
+    # The named alarms, which are reminders and warnings rather than faults.
+    (
+        ("DrumClean",),
+        "Time to run the Drum Clean programme",
+        "Run it on an empty drum. The appliance counts washes and asks about every 40.",
+    ),
+    (
+        ("FilterAlarm",),
+        "Water is left in the drain filter",
+        "Open the flap at the bottom front and drain it, then clean the filter.",
+    ),
+    (
+        ("FreezeProtection",),
+        "Freezing risk - it is near 2 C where the appliance stands",
+        "Empty the hoses and the residual water hose if it will stand unused, or run the"
+        " appliance's own anti-freezing mode.",
+    ),
+    (
+        ("AirwashWarning",),
+        "The chosen programme cannot run with water in the drum",
+        "Drain it first, then start the programme again.",
+    ),
+    (
+        ("DispenserOpen",),
+        "The detergent drawer is open",
+        "Close it.",
+    ),
+    (
+        ("DispenserAbnormal",),
+        "The automatic dispenser is not working as expected",
+        "Check it is clean and not empty. If it persists, it needs a service visit.",
+    ),
+    (
+        ("HotWarning",),
+        "The appliance raised its hot warning",
+        "It clears itself. The app carries no explanation for this one, so treat it as"
+        " information: something inside is hot.",
+    ),
+)
+FAULT_CODES: dict[str, tuple[str, str]] = {
+    code.upper(): (meaning, action)
+    for codes, meaning, action in FAULT_MEANINGS
+    for code in codes
+}
+# What the fault sensor reads when the appliance reports nothing wrong, chosen over "unknown"
+# so a template can compare it without a guard.
+FAULT_NONE = "none"
+
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
     Platform.BUTTON,

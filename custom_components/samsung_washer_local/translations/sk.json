@@ -187,6 +187,9 @@
       "rinse_cycles": {
         "name": "Počet plákaní"
       },
+      "fault": {
+        "name": "Chybový kód"
+      },
       "diagnosis": {
         "name": "Diagnostika"
       },
