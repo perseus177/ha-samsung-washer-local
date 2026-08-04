@@ -36,7 +36,7 @@ entities, so no YAML is needed for the common case:
 | `select` **5. Laundry Out reminder** | The one that writes straight away, since the appliance takes this reminder on its own. Numbered with the rest because it is the last thing chosen before a wash. |
 | `switch` **6. Add wash alarm** | The reminder for adding a forgotten sock mid-cycle. Writes straight away, like 5. |
 | `switch` **6a / 6b / 6c** | *When rinsing starts*, *when the final rinse starts*, *when spinning starts* — which moments the alarm fires at. Unavailable while 6 is off, exactly as the app greys its checkboxes out. |
-| `button` Start selected programme | Sends 1–4. |
+| `button` Start selected programme | Sends 1–4. Not the same as plain **Start / resume**, which writes only `Run` — that one resumes a paused cycle, which this one deliberately will not do. |
 
 The numbers are there because Home Assistant lists entities alphabetically and there is no
 ordering to set; without them the spin speed sorts first and the programme third, which reads
@@ -242,7 +242,9 @@ and restart Home Assistant.
 | `binary_sensor` AddWash indicator | The blinking panel lamp — **disabled by default**, it flips every few seconds on its own |
 | `sensor` Diagnosis | `Diagnosis.diagnosisStart`; also carries every raw `Mode.options` token as attributes |
 | `sensor` Consumption counter | The appliance's own counter, **no unit** — see below |
-| `button` Start, Pause, Cancel | Start also resumes from pause |
+| `button` Start / resume | Writes `Run`: resumes a paused cycle, or runs whatever the **dial** is set to. The only way to resume |
+| `button` Start selected programme | Sends the chosen programme *and* the start. Refuses unless the appliance is idle, since resuming would silently ignore the choice |
+| `button` Pause, Cancel | |
 | `select` 5. Laundry Out reminder | `0` / `30` / `60` / `90` minutes — writes straight to the appliance |
 | `select` Programme / temperature / rinse / spin to start | The choice for the next start; see above. Writes nothing on its own |
 | `button` Start selected programme | Starts that choice |

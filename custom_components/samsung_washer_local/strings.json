@@ -76,7 +76,7 @@
     },
     "button": {
       "start": {
-        "name": "Start"
+        "name": "Start / resume (dial's programme)"
       },
       "pause": {
         "name": "Pause"
