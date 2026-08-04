@@ -196,6 +196,9 @@
     },
     "unknown_device": {
       "message": "{device_id} nie je zariadenie Samsung Washer Local."
+    },
+    "remote_control_off": {
+      "message": "Práčka na adrese {host} má vypnuté vzdialené ovládanie, takže cyklus nespustí nikomu okrem panela. Zapni vzdialené ovládanie (bubon musí byť zavretý) a skús znova."
     }
   },
   "services": {

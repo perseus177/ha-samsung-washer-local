@@ -55,8 +55,16 @@ allow, naming the ones it does — worth doing, because the appliance itself wou
 impossible combination with a silent `204`. On a TP6X_WW6500 Drum Clean allows exactly 60 °C,
 400 rpm and 2 rinses, while Rinse + Spin has no temperature at all.
 
-A programme can only be started from an idle appliance, so the service refuses when a cycle
-is already running rather than sending a write that would resume the old programme.
+Two conditions are checked before anything is sent, because in both cases the appliance's
+own refusal would point at the wrong thing:
+
+- **Remote Control has to be on.** It is the appliance's consent to being driven, and
+  without it a start is either refused with `403 SHE-001` or dropped silently with a `204`
+  — which would read as "the appliance ignored the programme" when the cause is a button on
+  the panel. The service says which button. (An unknown Remote Control state is not treated
+  as a refusal.)
+- **The appliance has to be idle**, or a start would resume the programme already loaded
+  rather than the one asked for.
 
 ### Cancelling
 

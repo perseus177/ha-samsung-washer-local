@@ -196,6 +196,9 @@
     },
     "unknown_device": {
       "message": "{device_id} is not a Samsung Washer Local device."
+    },
+    "remote_control_off": {
+      "message": "Remote Control is switched off on the appliance at {host}, so it will not start a cycle for anyone but the panel. Switch Remote Control on (the door has to be closed) and try again."
     }
   },
   "services": {

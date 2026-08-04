@@ -237,6 +237,19 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
         settings = self._validate(
             code, {"temperature": temperature, "rinse": rinse, "spin": spin}
         )
+        # Remote Control is the appliance's own consent to being driven, and starting a
+        # wash is the one action where getting this wrong matters. Checked here rather
+        # than left to the appliance because refusal is not consistent: some firmware
+        # answers 403 SHE-001, and some simply drops the write and reports 204 - which
+        # would surface as "the appliance ignored the programme", pointing at the wrong
+        # thing entirely when the cause is a button on the panel. Only an explicit False
+        # blocks; an unknown value is not treated as a refusal.
+        if self.data and self.data.remote_control_enabled is False:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="remote_control_off",
+                translation_placeholders={"host": self.host},
+            )
         if self.data and self.data.state not in (None, STATE_READY):
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
