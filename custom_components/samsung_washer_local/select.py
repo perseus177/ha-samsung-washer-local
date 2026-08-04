@@ -10,7 +10,8 @@ The three setting selects offer exactly what the chosen programme allows, decode
 appliance's own supportedOptions - so picking Drum Clean leaves one temperature to choose
 from, and Rinse + Spin has no temperature at all, in which case that select goes
 unavailable rather than pretending. Switching programme drops a value the new one does not
-allow, the way the app's dialogs do.
+allow, the way the app's dialogs do. Changing any of them republishes to all four at
+once, so the narrowed lists appear immediately rather than at the next poll.
 """
 
 from __future__ import annotations
@@ -106,7 +107,6 @@ class WasherProgrammeSelect(SamsungWasherEntity, SelectEntity):
                 break
         else:
             self.coordinator.set_pending_programme(option)
-        self.async_write_ha_state()
 
 
 class WasherSettingSelect(SamsungWasherEntity, SelectEntity):
@@ -142,4 +142,3 @@ class WasherSettingSelect(SamsungWasherEntity, SelectEntity):
     async def async_select_option(self, option: str) -> None:
         """Remember the value for the next start."""
         self.coordinator.set_pending(self._field, option)
-        self.async_write_ha_state()

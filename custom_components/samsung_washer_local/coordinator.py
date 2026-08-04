@@ -223,13 +223,21 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
         return default if default in allowed else (allowed[0] if allowed else None)
 
     def set_pending_programme(self, code: str) -> None:
-        """Point the selects at another programme, dropping settings it does not allow."""
+        """Point the selects at another programme, dropping settings it does not allow.
+
+        Listeners are notified straight away. The three setting selects derive their whole
+        option list from this choice, and without the push they would keep showing the old
+        programme's values until the next poll came round - up to the poll interval of
+        staleness for something that changed instantly and locally.
+        """
         self._pending_programme = code.upper()
         self._pending_settings = {}
+        self.async_update_listeners()
 
     def set_pending(self, field: str, value: str) -> None:
-        """Record a chosen setting."""
+        """Record a chosen setting, and republish so every select agrees at once."""
         self._pending_settings[field] = value
+        self.async_update_listeners()
 
     async def async_start_selected(self) -> None:
         """Start the programme the selects are pointing at."""
