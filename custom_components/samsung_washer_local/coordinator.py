@@ -20,7 +20,7 @@ from .api import (
     WasherOfflineError,
     WasherState,
 )
-from .const import DOMAIN, ENERGY_INTERVAL
+from .const import COURSE_MAP, DOMAIN, ENERGY_INTERVAL, STATE_READY
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -173,6 +173,88 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
             await self.client.async_cancel()
         except WasherError as err:
             raise self._user_error(err, "cancel_failed") from err
+        await self.async_request_refresh()
+
+    def _resolve_programme(self, programme: str) -> str:
+        """Turn what the user asked for into a course code the appliance knows.
+
+        Both spellings are accepted: the name the Programme sensor shows (``drum_clean``)
+        and the raw code behind it (``63``), because the code is what a model outside the
+        calibrated map has to be driven by.
+        """
+        wanted = programme.strip().lower()
+        for code, name in COURSE_MAP.items():
+            if wanted in (name, code.lower()):
+                return code
+        known = self.data.course_options if self.data else {}
+        if wanted.upper() in known:
+            return wanted.upper()
+        raise HomeAssistantError(
+            translation_domain=DOMAIN,
+            translation_key="unknown_programme",
+            translation_placeholders={
+                "programme": programme,
+                "known": ", ".join(sorted(COURSE_MAP.values())),
+            },
+        )
+
+    def _validate(self, code: str, settings: dict[str, str | None]) -> dict[str, str]:
+        """Drop unset settings and refuse ones this programme does not allow.
+
+        The appliance publishes what each programme allows in supportedOptions, so this is
+        checked against the device rather than a hardcoded table - and it is checked at all
+        because the appliance answers an impossible combination with a silent 204.
+        """
+        allowed_for_course = (self.data.course_options if self.data else {}).get(code, {})
+        checked: dict[str, str] = {}
+        for field, value in settings.items():
+            if value is None:
+                continue
+            allowed = (allowed_for_course.get(field) or {}).get("allowed") or []
+            if allowed and str(value) not in allowed:
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="option_not_allowed",
+                    translation_placeholders={
+                        "field": field,
+                        "value": str(value),
+                        "programme": COURSE_MAP.get(code, code),
+                        "allowed": ", ".join(allowed),
+                    },
+                )
+            checked[field] = str(value)
+        return checked
+
+    async def async_start_cycle(
+        self,
+        programme: str,
+        temperature: str | None = None,
+        rinse: str | None = None,
+        spin: str | None = None,
+    ) -> None:
+        """Select a programme and start it, then publish the resulting state."""
+        code = self._resolve_programme(programme)
+        settings = self._validate(
+            code, {"temperature": temperature, "rinse": rinse, "spin": spin}
+        )
+        if self.data and self.data.state not in (None, STATE_READY):
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="not_ready",
+                translation_placeholders={"state": self.data.state or "unknown"},
+            )
+        try:
+            await self.client.async_start_cycle(code, settings)
+        except WasherError as err:
+            raise self._user_error(err, "write_failed") from err
+        await self.async_request_refresh()
+
+    async def async_set_add_wash(self, value: str) -> None:
+        """Set the AddWash token, then publish the resulting state."""
+        try:
+            await self.client.async_set_add_wash(value)
+        except WasherError as err:
+            raise self._user_error(err, "write_failed") from err
         await self.async_request_refresh()
 
     async def async_set_laundry_out_time(self, minutes: str) -> None:

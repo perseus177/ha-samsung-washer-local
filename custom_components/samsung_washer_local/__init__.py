@@ -4,14 +4,20 @@ from __future__ import annotations
 
 import logging
 
+import voluptuous as vol
+
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_PORT
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.const import ATTR_DEVICE_ID, CONF_HOST, CONF_PORT
+from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import ConfigEntryNotReady, ServiceValidationError
+from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_registry as er
 
 from .api import SamsungWasherClient, WasherError
 from .const import (
+    ATTR_PROGRAMME,
+    ATTR_RINSE,
+    ATTR_SPIN,
+    ATTR_TEMPERATURE,
     CONF_CERT_PEM,
     CONF_KEY_PEM,
     CONF_POLL_INTERVAL,
@@ -20,12 +26,68 @@ from .const import (
     DEFAULT_PORT,
     DOMAIN,
     PLATFORMS,
+    SERVICE_START_CYCLE,
 )
 from .coordinator import SamsungWasherCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 type SamsungWasherConfigEntry = ConfigEntry[SamsungWasherCoordinator]
+
+
+START_CYCLE_SCHEMA = vol.Schema(
+    {
+        # A device target arrives as a list, even for one device.
+        vol.Required(ATTR_DEVICE_ID): vol.All(cv.ensure_list, [cv.string]),
+        vol.Required(ATTR_PROGRAMME): cv.string,
+        vol.Optional(ATTR_TEMPERATURE): cv.string,
+        vol.Optional(ATTR_RINSE): cv.string,
+        vol.Optional(ATTR_SPIN): cv.string,
+    }
+)
+
+
+def _coordinator_for_device(
+    hass: HomeAssistant, device_id: str
+) -> SamsungWasherCoordinator:
+    """Return the coordinator behind a device id from a service call."""
+    device = dr.async_get(hass).async_get(device_id)
+    entries = device.config_entries if device else set()
+    for entry_id in entries:
+        entry = hass.config_entries.async_get_entry(entry_id)
+        if entry and entry.domain == DOMAIN and hasattr(entry, "runtime_data"):
+            return entry.runtime_data
+    raise ServiceValidationError(
+        translation_domain=DOMAIN,
+        translation_key="unknown_device",
+        translation_placeholders={"device_id": device_id},
+    )
+
+
+async def _async_register_services(hass: HomeAssistant) -> None:
+    """Register the integration's services once.
+
+    Starting a cycle is a service rather than an entity on purpose. Selecting a programme
+    means starting a wash - the appliance accepts the two only together - and a select or
+    a button that starts the machine on a single tap is a surprise nobody wants on a
+    dashboard. A service has to be asked for.
+    """
+    if hass.services.has_service(DOMAIN, SERVICE_START_CYCLE):
+        return
+
+    async def start_cycle(call: ServiceCall) -> None:
+        for device_id in call.data[ATTR_DEVICE_ID]:
+            coordinator = _coordinator_for_device(hass, device_id)
+            await coordinator.async_start_cycle(
+                call.data[ATTR_PROGRAMME],
+                temperature=call.data.get(ATTR_TEMPERATURE),
+                rinse=call.data.get(ATTR_RINSE),
+                spin=call.data.get(ATTR_SPIN),
+            )
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_START_CYCLE, start_cycle, schema=START_CYCLE_SCHEMA
+    )
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: SamsungWasherConfigEntry) -> bool:
@@ -52,6 +114,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SamsungWasherConfigEntry
     entry.async_on_unload(client.async_close)
 
     _async_migrate_host_ids(hass, entry, coordinator.identity, host)
+    await _async_register_services(hass)
 
     # Identity is static, so it is read once and only for the device registry. It is
     # allowed to fail: an idle appliance is usually off the network, and that must not

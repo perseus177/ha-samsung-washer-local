@@ -17,43 +17,60 @@ cloud being involved.
 | | |
 |---|---|
 | Read state, programme, progress, parameters, error codes, identity | ✅ |
+| **Select a programme and start it, with temperature / spin / rinse** | ✅ `samsung_washer_local.start_cycle` |
 | Start / pause / resume the programme selected on the dial | ✅ |
+| Cancel a running cycle | ✅ from a running cycle only — see below |
 | Set the Laundry Out reminder (0/30/60/90 min) | ✅ |
-| Cancel a running cycle | ⚠️ implemented, unverified — see below |
-| **Select the wash programme remotely** | ❌ not possible |
-| Set temperature / spin / rinse remotely | ❌ not possible |
+| Switch AddWash on and off | ✅ |
+| Set the programme *without* starting it | ❌ the appliance only accepts the two together |
 
-The Cancel button exists and is wired up, but it has never been confirmed against a
-running cycle. It does, however, know to leave an idle appliance alone: writing `Ready` to
-one that is already idle is not the no-op it looks like — measured on a TP6X_WW6500, a
-single such write moved it to Pause and reset the hand-dialled temperature and rinse count
-to the programme's defaults — so Cancel reads the state first and writes nothing when there
-is nothing to cancel. The reason it is not simply a third state to write: `Operation.state` has
-only ever been observed to hold `Ready`, `Run` and `Pause`, and no value for "cancel"
-turned up anywhere in the appliance's own vocabulary. The button therefore writes `Ready`
-and then, if that changes nothing, `Stop`, and judges the outcome by the appliance ending
-up in `Ready` rather than by it echoing back what was written — a cancel naturally lands
-in `Ready`, so comparing against the written value would report a false failure. If it
-does not work on your appliance you will get a clear error saying what each attempt left
-it in; please report that.
+### Starting a cycle
 
-Programme selection is a different matter. A `Course_XX` write on its own is answered
-`204 No Content` and then discarded — many shapes were tried, on both the resource and the
-aggregate endpoint, wrapped and bare. What is now known is *why* that may be: the official
-app never writes the programme on its own either. It always sends it in one body together
-with `Operation.state`, alongside the temperature, spin and rinse settings:
+`samsung_washer_local.start_cycle` selects a programme and starts it in one go, because the
+appliance accepts the two only together — a programme written on its own is answered
+`204 No Content` and discarded, and so are isolated temperature, spin and rinse writes. This
+is the request the official app makes, and the one this service makes:
 
 ```json
-{"Device":{"Mode":{"options":["Course_5C"]},"Operation":{"state":"Run"},
-           "Washer":{"rinseCycles":"2","waterTemperature":"40","spinLevel":"1400"}}}
+{"Device": {"Mode": {"options": ["Course_63"]},
+            "Operation": {"state": "Run"},
+            "Washer": {"waterTemperature": "60", "spinLevel": "400"}}}
 ```
 
-So the appliance may well accept a programme change *as part of starting a cycle*, which
-would also explain why isolated temperature, spin and rinse writes are discarded. Sending
-that shape with a state that starts nothing (`Ready`) does **not** work — measured. Whether
-it works with `Run` is untested here, because it would start a real wash. Until then:
-**a start runs whatever is set on the physical dial**, so if you automate starting, read the
-programme sensor first and check it is what you expect.
+```yaml
+action: samsung_washer_local.start_cycle
+target:
+  device_id: <your washer>
+data:
+  programme: drum_clean      # or a raw course code, e.g. "63"
+  temperature: "60"          # optional; omitted means the programme's own default
+```
+
+**Which settings a programme allows is read from the appliance, not guessed.**
+`supportedOptions` carries, per programme, a bitmap of allowed temperatures, rinse counts and
+spin speeds plus its own default, and the Programme sensor exposes the decoded set for the
+currently selected programme as `allowed_temperature`, `allowed_rinse`, `allowed_spin` and
+the matching `default_*` attributes. The service refuses a value the programme does not
+allow, naming the ones it does — worth doing, because the appliance itself would answer an
+impossible combination with a silent `204`. On a TP6X_WW6500 Drum Clean allows exactly 60 °C,
+400 rpm and 2 rinses, while Rinse + Spin has no temperature at all.
+
+A programme can only be started from an idle appliance, so the service refuses when a cycle
+is already running rather than sending a write that would resume the old programme.
+
+### Cancelling
+
+Cancel is a `Ready` write, and what that does depends entirely on the state it is sent from —
+all three measured on a TP6X_WW6500:
+
+| From | Result |
+|---|---|
+| **Run** | lands in `Ready`. The cycle is cancelled. |
+| **Pause** | accepted and ignored. The button reports that the cycle has to be resumed first, or ended at the panel. |
+| **Ready** | **harmful** — it moves the appliance to `Pause` and resets the hand-dialled temperature and rinse count to the programme's defaults. Nothing is written in this case. |
+
+`Stop`, the other candidate value, is not one this firmware knows: it answers
+`400 "Control fail"`, so it is not attempted.
 
 ## ⚠️ When the appliance is on the network — and when it is not
 
@@ -146,7 +163,7 @@ and restart Home Assistant.
 
 | Entity | Notes |
 |---|---|
-| `sensor` Programme | Enum; the raw code is kept in the `course_code` attribute |
+| `sensor` Programme | Enum; attributes carry the raw `course_code` and, decoded from the appliance, the `allowed_*` / `default_*` settings for that programme |
 | `sensor` State | `ready` / `run` / `pause` |
 | `sensor` Phase | `none` / `delaywash` / `weightsensing` / `prewash` / `predrain` / `wash` / `rinse` / `spin` / `steaming` / `drying` / `cooling` / `finish` |
 | `sensor` Progress | Percent. Tracks elapsed time, not actual washing progress |
@@ -161,6 +178,8 @@ and restart Home Assistant.
 | `sensor` Consumption counter | The appliance's own counter, **no unit** — see below |
 | `button` Start, Pause, Cancel | Start also resumes from pause |
 | `select` Laundry Out reminder | `0` / `30` / `60` / `90` minutes |
+| `switch` AddWash | Writable. A three-bit mask underneath (`0`–`7`), so the raw value is kept in an attribute; on writes `7` |
+| `sensor` Quick wash | Read-only — the appliance reports whether it has a quick-wash preset, and the app has no write for it either |
 
 Everything the appliance exposes is covered: `resources` lists exactly eight
 (`Alarms`, `Configuration`, `Diagnosis`, `EnergyConsumption`, `Information`, `Mode`,

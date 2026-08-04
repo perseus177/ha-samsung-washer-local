@@ -34,7 +34,16 @@ import tempfile
 from dataclasses import dataclass, field
 from typing import Any
 
-from .const import CANCEL_STATES, COURSE_MAP, STATE_READY
+from .const import (
+    CANCEL_STATE,
+    COURSE_MAP,
+    MIN_MAX_OPTION_TYPES,
+    OPTION_FIELDS,
+    START_PATH,
+    STATE_READY,
+    STATE_RUN,
+    WRITABLE_SETTINGS,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -113,7 +122,13 @@ class WasherState:
     # seconds, so it is offered only as a disabled-by-default diagnostic.
     add_wash_set: str | None = None
     add_wash_indicator: str | None = None
+    # Read-only. QuickWash_Not_Used means the appliance has no such feature; any other
+    # value means it has. The official app only ever reads this - it has no write for it.
+    quick_wash: str | None = None
     diagnosis: str | None = None
+    # Per programme: which temperature/rinse/spin values it allows and its own default,
+    # decoded from supportedOptions. Keyed by course code.
+    course_options: dict[str, Any] = field(default_factory=dict)
     # Every token, so nothing the appliance reports is lost even where the meaning
     # is unknown (EnergyKW, NoCheck_SC, DeviceType, QuickWash, TimeSync, UsagesDB).
     mode_options: list[str] = field(default_factory=list)
@@ -229,6 +244,61 @@ def _option(options: list[str], prefix: str) -> str | None:
         if option.startswith(prefix):
             return option[len(prefix) :]
     return None
+
+
+def _parse_course_options(
+    blob: str, supported: dict[str, list[str]]
+) -> dict[str, dict[str, Any]]:
+    """Decode supportedOptions into what each programme allows.
+
+    Returns ``{course_code: {field: {"default": value, "allowed": [values]}}}``. The layout
+    is described in const.py; the values are produced by indexing into the appliance's own
+    ``supported<X>`` lists, so a model with different settings decodes just as well. An
+    unparsable blob returns nothing rather than raising - it is a convenience, and a poll
+    must not fail over it.
+    """
+    if not blob or not blob[0].isdigit():
+        return {}
+    per_course = int(blob[0], 10)
+    record_length = 2 + per_course * 4
+    body = blob[1:]
+    if not record_length or len(body) % record_length:
+        _LOGGER.debug("supportedOptions does not divide into records: %r", blob)
+        return {}
+
+    courses: dict[str, dict[str, Any]] = {}
+    for start in range(0, len(body), record_length):
+        record = body[start : start + record_length]
+        code = record[:2].upper()
+        fields: dict[str, Any] = {}
+        for offset in range(2, len(record), 4):
+            try:
+                raw = int(record[offset : offset + 4], 16)
+            except ValueError:
+                continue
+            option_type = raw >> 12 & 0xF
+            default_index = raw >> 8 & 0xF
+            available = raw & 0xFF
+            if option_type not in OPTION_FIELDS:
+                continue
+            field, attribute = OPTION_FIELDS[option_type]
+            values = supported.get(attribute) or []
+            if option_type in MIN_MAX_OPTION_TYPES:
+                low, high = available & 0xF, available >> 4
+                allowed = [values[i] for i in range(low, high + 1) if i < len(values)]
+            else:
+                allowed = [
+                    values[bit]
+                    for bit in range(8)
+                    if available >> bit & 1 and bit < len(values)
+                ]
+            fields[field] = {
+                "default": values[default_index] if default_index < len(values) else None,
+                "allowed": allowed,
+            }
+        if fields:
+            courses[code] = fields
+    return courses
 
 
 class SamsungWasherClient:
@@ -388,6 +458,14 @@ class SamsungWasherClient:
         course_code = _option(options, "Course_")
         add_wash = _option(options, "AddWashAvailable_")
         progress = operation.get("progress")
+        supported_lists = {
+            "supported_water_temperature": list(washer.get("supportedWaterTemperature", [])),
+            "supported_rinse_cycles": list(washer.get("supportedRinseCycles", [])),
+            "supported_spin_level": list(washer.get("supportedSpinLevel", [])),
+            "supported_water_height": list(washer.get("supportedWaterHeight", [])),
+            "supported_wash_time": list(washer.get("supportedWashTime", [])),
+        }
+        supported_options = list(mode.get("supportedOptions", []))
 
         return WasherState(
             state=operation.get("state"),
@@ -414,12 +492,18 @@ class SamsungWasherClient:
             ],
             add_wash_set=_option(options, "AddWashSet_"),
             add_wash_indicator=_option(options, "AddWashIndicator_"),
+            quick_wash=_option(options, "QuickWash_"),
             diagnosis=diagnosis.get("diagnosisStart"),
             mode_options=list(options),
-            supported_options=list(mode.get("supportedOptions", [])),
-            supported_water_temperature=list(washer.get("supportedWaterTemperature", [])),
-            supported_spin_level=list(washer.get("supportedSpinLevel", [])),
-            supported_rinse_cycles=list(washer.get("supportedRinseCycles", [])),
+            supported_options=supported_options,
+            supported_water_temperature=supported_lists["supported_water_temperature"],
+            supported_spin_level=supported_lists["supported_spin_level"],
+            supported_rinse_cycles=supported_lists["supported_rinse_cycles"],
+            course_options=(
+                _parse_course_options(supported_options[0], supported_lists)
+                if supported_options
+                else {}
+            ),
         )
 
     async def async_read_information(self) -> dict[str, Any]:
@@ -472,18 +556,15 @@ class SamsungWasherClient:
     async def async_cancel(self) -> None:
         """Cancel the running cycle.
 
-        Unlike start and pause, the value that cancels a cycle has not been observed
-        on this appliance - only Ready, Run and Pause are known. Both plausible ones
-        are therefore tried in turn, and success is judged by the appliance ending up
-        in Ready rather than by it echoing back what was written (a cancel naturally
-        lands in Ready, so comparing against the written value would report a false
-        failure).
+        There is no dedicated cancel value; a Ready write does it, and only from a running
+        cycle. What each starting state does was measured on a TP6X_WW6500:
 
-        Nothing is written when the appliance is already idle. That is not merely an
-        optimisation: writing Ready to an idle appliance is *not* the no-op it appears to
-        be. Measured on a TP6X_WW6500 sitting in Ready with 60 degrees and 2 rinses
-        dialled in by hand - one such write moved it to Pause and reset the settings to
-        the programme's own defaults (40 degrees, 3 rinses), discarding the choice.
+        * from Run   - lands in Ready. Cancelled.
+        * from Pause - accepted and ignored. Nothing to do but resume it first, or end it
+          at the panel; saying so is more use than a write that does nothing.
+        * from Ready - actively harmful. It moves the appliance to Pause and resets the
+          temperature, spin and rinse selections to the programme's defaults, throwing
+          away whatever was dialled in at the panel. So an idle appliance is left alone.
         """
         state = (await self._async_get("/devices/0/operation")).get("Operation", {}).get(
             "state"
@@ -491,14 +572,80 @@ class SamsungWasherClient:
         if state == STATE_READY:
             _LOGGER.debug("Nothing to cancel: %s is already idle", self._host)
             return
+        if state != STATE_RUN:
+            raise WasherError(
+                f"the appliance is {state}, and a cancel only takes effect on a running"
+                " cycle - resume it first, or end the cycle at the panel"
+            )
+        reported = await self._async_write_state(CANCEL_STATE)
+        if reported != STATE_READY:
+            raise WasherError(
+                f"the appliance did not cancel the cycle: it reports {reported}"
+            )
 
-        errors: list[str] = []
-        for candidate in CANCEL_STATES:
-            reported = await self._async_write_state(candidate)
-            if reported == STATE_READY:
-                return
-            errors.append(f"state={candidate} left it in {reported}")
-        raise WasherError("the appliance did not cancel the cycle: " + "; ".join(errors))
+    async def async_start_cycle(
+        self, course_code: str, settings: dict[str, str] | None = None
+    ) -> None:
+        """Start a programme, optionally with settings, exactly as the official app does.
+
+        One PUT carrying the programme, the Run state and any settings. The programme
+        cannot be written on its own - see START_PATH in const.py - and settings sent on
+        their own are discarded too, which is why they ride along here. Anything left
+        unspecified is not sent at all: the appliance then applies that programme's own
+        defaults, which is what it does for the app as well.
+
+        Verified by reading back, because a 204 means nothing on this transport.
+        """
+        body: dict[str, Any] = {
+            "Mode": {"options": [f"Course_{course_code.upper()}"]},
+            "Operation": {"state": STATE_RUN},
+        }
+        washer = {
+            WRITABLE_SETTINGS[field]: str(value)
+            for field, value in (settings or {}).items()
+            if field in WRITABLE_SETTINGS and value is not None
+        }
+        if washer:
+            body["Washer"] = washer
+
+        status, response = await self._async_request("PUT", START_PATH, {"Device": body})
+        if status not in (200, 204):
+            raise WasherError(f"starting {course_code} returned {status}: {response}")
+
+        await asyncio.sleep(3)
+        device = (await self._async_get(START_PATH)).get("Device", {})
+        options = device.get("Mode", {}).get("options", [])
+        started = _option(options, "Course_")
+        state = device.get("Operation", {}).get("state")
+        if (started or "").upper() != course_code.upper():
+            raise WasherError(
+                f"the appliance ignored the programme (it reports {started},"
+                f" state {state})"
+            )
+        if state != STATE_RUN:
+            raise WasherError(
+                f"the programme was selected but the appliance did not start it"
+                f" (it reports {state})"
+            )
+
+    async def async_set_add_wash(self, value: str) -> None:
+        """Set the AddWash feature's own on/off token, verifying it afterwards.
+
+        Written on its own, like the Laundry Out reminder - AddWash is not part of a cycle,
+        and the official app writes it standalone too.
+        """
+        status, body = await self._async_request(
+            "PUT", "/devices/0/mode", {"Mode": {"options": [f"AddWashSet_{value}"]}}
+        )
+        if status not in (200, 204):
+            raise WasherError(f"setting AddWashSet returned {status}: {body}")
+        await asyncio.sleep(2)
+        mode = (await self._async_get("/devices/0/mode")).get("Mode", {})
+        current = _option(mode.get("options", []), "AddWashSet_")
+        if current != value:
+            raise WasherError(
+                f"the appliance ignored AddWashSet={value} (it reports {current})"
+            )
 
     async def async_set_laundry_out_time(self, minutes: str) -> None:
         """Set the Laundry Out reminder interval, verifying it afterwards."""

@@ -161,6 +161,14 @@
       },
       "energy_counter": {
         "name": "Consumption counter"
+      },
+      "quick_wash": {
+        "name": "Quick wash"
+      }
+    },
+    "switch": {
+      "add_wash_set": {
+        "name": "AddWash"
       }
     }
   },
@@ -175,7 +183,43 @@
       "message": "The appliance did not apply the change: {details}"
     },
     "cancel_failed": {
-      "message": "The appliance did not cancel the cycle: {details}"
+      "message": "The appliance did not cancel the cycle: {details}. Not every generation has a remote cancel: a TP6X_WW6500 accepts the Ready write and stays paused, and rejects Stop outright, so the cycle has to be ended at the panel."
+    },
+    "unknown_programme": {
+      "message": "There is no programme called {programme} on this appliance. Known programmes: {known}. A raw course code such as 63 also works."
+    },
+    "option_not_allowed": {
+      "message": "The programme {programme} does not allow {field} = {value}. It allows: {allowed}."
+    },
+    "not_ready": {
+      "message": "The appliance is {state}, so a new cycle cannot be started. End the current one first."
+    },
+    "unknown_device": {
+      "message": "{device_id} is not a Samsung Washer Local device."
+    }
+  },
+  "services": {
+    "start_cycle": {
+      "name": "Start cycle",
+      "description": "Select a wash programme and start it. The appliance only accepts a programme together with a start, which is why this is one action rather than a setting. Anything left empty uses the programme's own default.",
+      "fields": {
+        "programme": {
+          "name": "Programme",
+          "description": "The programme name as the Programme sensor shows it (for example drum_clean), or its raw code (63) on a model whose codes are not mapped."
+        },
+        "temperature": {
+          "name": "Water temperature",
+          "description": "Only values this programme allows; see the allowed_temperature attribute of the Programme sensor."
+        },
+        "rinse": {
+          "name": "Rinse cycles",
+          "description": "Only values this programme allows; see the allowed_rinse attribute of the Programme sensor."
+        },
+        "spin": {
+          "name": "Spin speed",
+          "description": "Only values this programme allows; see the allowed_spin attribute of the Programme sensor."
+        }
+      }
     }
   }
 }

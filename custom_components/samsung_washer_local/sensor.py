@@ -167,6 +167,14 @@ SENSORS: tuple[WasherSensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda state: state.diagnosis,
     ),
+    # Read-only: the appliance reports whether it has a quick-wash preset and whether one
+    # is in use, but the official app has no write for it either - the panel owns it.
+    WasherSensorDescription(
+        key="quick_wash",
+        translation_key="quick_wash",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda state: state.quick_wash,
+    ),
     # The appliance's own consumption counter, out of /files/usage.db. No unit and no
     # device_class on purpose: the counter's scale could not be pinned down (a day's
     # rise measured against a metering plug on the same appliance came out at roughly
@@ -223,8 +231,21 @@ class WasherSensor(SamsungWasherEntity, SensorEntity):
             return None
         key = self.entity_description.key
         if key == "course":
-            # Keeps an unmapped programme usable on another model.
-            return {"course_code": state.course_code} if state.course_code else None
+            # The raw code keeps an unmapped programme usable on another model, and the
+            # allowed settings - decoded from supportedOptions - say what start_cycle will
+            # accept for the programme currently selected, without having to guess.
+            attributes: dict[str, str] = {}
+            if state.course_code:
+                attributes["course_code"] = state.course_code
+            for field, values in (
+                state.course_options.get((state.course_code or "").upper(), {}) or {}
+            ).items():
+                allowed = values.get("allowed") or []
+                if allowed:
+                    attributes[f"allowed_{field}"] = ", ".join(str(v) for v in allowed)
+                if values.get("default") is not None:
+                    attributes[f"default_{field}"] = str(values["default"])
+            return attributes or None
         if key == "water_temperature":
             # The appliance also reports "Cold" and "None", which a temperature sensor
             # cannot hold; without this the setting would simply vanish from the UI.

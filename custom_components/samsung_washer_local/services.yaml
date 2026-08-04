@@ -1,0 +1,22 @@
+start_cycle:
+  target:
+    device:
+      integration: samsung_washer_local
+  fields:
+    programme:
+      required: true
+      example: drum_clean
+      selector:
+        text:
+    temperature:
+      example: "40"
+      selector:
+        text:
+    rinse:
+      example: "2"
+      selector:
+        text:
+    spin:
+      example: "1400"
+      selector:
+        text:

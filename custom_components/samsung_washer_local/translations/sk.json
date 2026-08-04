@@ -161,6 +161,14 @@
       },
       "energy_counter": {
         "name": "Počítadlo spotreby"
+      },
+      "quick_wash": {
+        "name": "Rýchle pranie"
+      }
+    },
+    "switch": {
+      "add_wash_set": {
+        "name": "AddWash"
       }
     }
   },
@@ -175,7 +183,43 @@
       "message": "Práčka zmenu neaplikovala: {details}"
     },
     "cancel_failed": {
-      "message": "Práčke sa nepodarilo zrušiť cyklus: {details}"
+      "message": "Práčke sa nepodarilo zrušiť cyklus: {details}. Nie každá generácia vzdialené zrušenie má: TP6X_WW6500 zápis Ready prijme a zostane v pauze, a Stop odmietne, takže cyklus treba ukončiť na paneli."
+    },
+    "unknown_programme": {
+      "message": "Program {programme} táto práčka nemá. Známe programy: {known}. Funguje aj surový kód programu, napríklad 63."
+    },
+    "option_not_allowed": {
+      "message": "Program {programme} nedovoľuje {field} = {value}. Dovoľuje: {allowed}."
+    },
+    "not_ready": {
+      "message": "Práčka je v stave {state}, takže nový cyklus sa spustiť nedá. Najprv ukonči ten súčasný."
+    },
+    "unknown_device": {
+      "message": "{device_id} nie je zariadenie Samsung Washer Local."
+    }
+  },
+  "services": {
+    "start_cycle": {
+      "name": "Spustiť program",
+      "description": "Vyberie prací program a spustí ho. Práčka prijme program iba spolu so štartom, preto je to jedna akcia a nie nastavenie. Čo nevyplníš, ostane na východzej hodnote programu.",
+      "fields": {
+        "programme": {
+          "name": "Program",
+          "description": "Názov programu tak, ako ho ukazuje senzor Prací program (napr. drum_clean), alebo jeho surový kód (63) pri modeli, ktorého kódy nie sú namapované."
+        },
+        "temperature": {
+          "name": "Teplota vody",
+          "description": "Iba hodnoty, ktoré daný program dovoľuje — pozri atribút allowed_temperature senzora Prací program."
+        },
+        "rinse": {
+          "name": "Počet plákaní",
+          "description": "Iba hodnoty, ktoré daný program dovoľuje — pozri atribút allowed_rinse."
+        },
+        "spin": {
+          "name": "Odstreďovanie",
+          "description": "Iba hodnoty, ktoré daný program dovoľuje — pozri atribút allowed_spin."
+        }
+      }
     }
   }
 }

@@ -55,13 +55,68 @@ STATE_READY = "Ready"
 STATE_RUN = "Run"
 STATE_PAUSE = "Pause"
 
-# No value for "cancel the cycle" has been observed on this appliance, so both
-# plausible ones are tried in order and success is judged by it landing in Ready.
-# ⚠️ Writing STATE_READY is only safe on an appliance that is *not* already idle: on an
-# idle one it moves the appliance to Pause and resets the temperature, spin and rinse
-# selections back to the programme's defaults. async_cancel therefore reads the state
-# first and writes nothing when it is already Ready.
-CANCEL_STATES = (STATE_READY, "Stop")
+# Cancelling is a Ready write, and it only does anything from a running cycle - measured:
+#   from Run    -> the appliance lands in Ready. The cycle is cancelled.
+#   from Pause  -> accepted and ignored; it stays paused.
+#   from Ready  -> harmful. It moves to Pause and resets the temperature, spin and rinse
+#                  selections back to the programme's defaults, discarding the choice.
+# "Stop" was the other candidate and is simply not a value this firmware knows: it answers
+# 400 "Control fail", which is the appliance saying it tried and refused, so it is not
+# attempted any more.
+CANCEL_STATE = STATE_READY
+
+# The programme is set by sending it *with* Operation.state - never on its own. The official
+# app has no other path: every Course_ write it makes carries a state, alongside the washer
+# settings, in one body on /devices/0. Course on its own is answered 204 and discarded, and
+# so are isolated temperature/spin/rinse writes. This is the shape that works:
+#   {"Device": {"Mode": {"options": ["Course_5C"]},
+#               "Operation": {"state": "Run"},
+#               "Washer": {"waterTemperature": "40", ...}}}
+START_PATH = "/devices/0"
+
+# supportedOptions carries, per programme, which temperature / rinse / spin values that
+# programme allows and which one is its default. Layout, from the official plugin's own
+# parser: one hex digit saying how many option fields each record has, then a record per
+# programme of two hex chars of course code followed by that many four-char fields. Each
+# field is 16 bits: type in 15-12, the default as an index in 11-8, and a bitmap of allowed
+# entries in 7-0. The indices and bits point into the supported<X> lists the appliance
+# reports for itself, so nothing here is model-specific.
+OPTION_TYPE_TEMPERATURE = 0x8
+OPTION_TYPE_RINSE = 0x9
+OPTION_TYPE_SPIN = 0xA
+# These two carry a min and a max index in the low byte instead of a bitmap. Only top
+# loaders report them, so they are decoded but not offered as service fields.
+OPTION_TYPE_WATER_HEIGHT = 0x6
+OPTION_TYPE_WASH_TIME = 0x7
+
+OPTION_FIELDS: dict[int, tuple[str, str]] = {
+    OPTION_TYPE_TEMPERATURE: ("temperature", "supported_water_temperature"),
+    OPTION_TYPE_RINSE: ("rinse", "supported_rinse_cycles"),
+    OPTION_TYPE_SPIN: ("spin", "supported_spin_level"),
+    OPTION_TYPE_WATER_HEIGHT: ("water_height", "supported_water_height"),
+    OPTION_TYPE_WASH_TIME: ("wash_time", "supported_wash_time"),
+}
+MIN_MAX_OPTION_TYPES = (OPTION_TYPE_WATER_HEIGHT, OPTION_TYPE_WASH_TIME)
+
+# What the appliance calls the settings in a write, keyed by the service's own field names.
+WRITABLE_SETTINGS = {
+    "temperature": "waterTemperature",
+    "rinse": "rinseCycles",
+    "spin": "spinLevel",
+    "water_height": "waterHeight",
+    "wash_time": "washTime",
+}
+
+# AddWash's own enable value is a three-bit mask (the app builds it from three
+# checkboxes), so 0-7 are all valid; 0 and 7 are the ones real appliances report.
+ADD_WASH_NONE = "0"
+ADD_WASH_ALL = "7"
+
+SERVICE_START_CYCLE = "start_cycle"
+ATTR_PROGRAMME = "programme"
+ATTR_TEMPERATURE = "temperature"
+ATTR_RINSE = "rinse"
+ATTR_SPIN = "spin"
 
 # Operation.progress and Operation.state feed enum sensors, and an enum sensor raises
 # if it is handed a value outside its option list - which takes the entity down rather
@@ -99,4 +154,5 @@ PLATFORMS: list[Platform] = [
     Platform.BUTTON,
     Platform.SELECT,
     Platform.SENSOR,
+    Platform.SWITCH,
 ]
