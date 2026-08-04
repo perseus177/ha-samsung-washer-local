@@ -57,6 +57,19 @@ class WasherOfflineError(WasherError):
     """
 
 
+class WasherControlDisabledError(WasherOfflineError):
+    """The appliance answered, but refuses to serve while its Wi-Fi control is off.
+
+    Some firmware families reject every request with ``403 SHE-001 "current function
+    of WiFi is disabled, please enable the function for controlling"`` until Remote
+    Control (Smart Control) is switched on at the panel; others answer reads regardless
+    and merely leave the network. Either way this is the appliance working as designed
+    and something only the owner can change, so it is treated as the same everyday
+    "not talking to us" condition as being offline - hence the subclass, which also
+    keeps any handler that only knows about WasherOfflineError correct.
+    """
+
+
 @dataclass(frozen=True)
 class WasherState:
     """A snapshot of everything the local API exposes."""
@@ -321,6 +334,18 @@ class SamsungWasherClient:
             description = body.get("errorDescription", "")
             if "Token" in description or status == 401:
                 raise WasherAuthError(description or "token is not valid")
+        if status == 403 and isinstance(body, dict):
+            # SHE-001: "current function of WiFi is disabled, please enable the function
+            # for controlling". Recognised here, before the callers turn a non-200 into
+            # a bare WasherError, so the message the user ends up seeing says what to do
+            # instead of quoting the appliance's error dict.
+            description = body.get("errorDescription", "")
+            if body.get("errorCode") == "SHE-001" or "WiFi is disabled" in description:
+                raise WasherControlDisabledError(
+                    "the appliance is refusing requests because its Wi-Fi control"
+                    " function is switched off - switch Remote Control (Smart Control)"
+                    " on at the panel, with the door closed"
+                )
         if status == 400 and isinstance(body, str) and "certificate" in body:
             raise WasherAuthError("the client certificate was rejected")
         return status, body

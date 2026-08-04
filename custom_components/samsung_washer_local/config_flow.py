@@ -28,6 +28,7 @@ from homeassistant.helpers.selector import (
 from .api import (
     SamsungWasherClient,
     WasherAuthError,
+    WasherControlDisabledError,
     WasherError,
     WasherOfflineError,
 )
@@ -88,6 +89,10 @@ class SamsungWasherConfigFlow(ConfigFlow, domain=DOMAIN):
                 information = await _async_validate(user_input)
             except WasherAuthError:
                 errors["base"] = "invalid_auth"
+            except WasherControlDisabledError:
+                # Before cannot_connect, and well before invalid_certificate: the
+                # credentials are fine, the appliance just will not serve yet.
+                errors["base"] = "control_disabled"
             except WasherOfflineError:
                 errors["base"] = "cannot_connect"
             except (WasherError, OSError, ValueError) as err:
@@ -133,6 +138,10 @@ class SamsungWasherConfigFlow(ConfigFlow, domain=DOMAIN):
                 await _async_validate(data)
             except WasherAuthError:
                 errors["base"] = "invalid_auth"
+            except WasherControlDisabledError:
+                # Before cannot_connect, and well before invalid_certificate: the
+                # credentials are fine, the appliance just will not serve yet.
+                errors["base"] = "control_disabled"
             except WasherOfflineError:
                 errors["base"] = "cannot_connect"
             except (WasherError, OSError, ValueError) as err:

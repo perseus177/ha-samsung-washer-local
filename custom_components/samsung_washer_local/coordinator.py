@@ -15,6 +15,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import (
     SamsungWasherClient,
     WasherAuthError,
+    WasherControlDisabledError,
     WasherError,
     WasherOfflineError,
     WasherState,
@@ -57,13 +58,20 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
 
         An unreachable appliance is expected behaviour - it leaves the Wi-Fi within
         minutes of going idle unless Remote Control is on - so it is logged at debug
-        level and merely makes the entities unavailable.
+        level and merely makes the entities unavailable. An appliance that refuses to
+        serve while its Wi-Fi control function is off is the same kind of everyday
+        condition, only self-reported; both make the entities unavailable, which is
+        honest, but the message has to say what the owner can do about it rather than
+        quote a 403 body.
         """
         try:
             state = await self.client.async_read_state()
             return replace(state, **await self._async_energy())
         except WasherAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
+        except WasherControlDisabledError as err:
+            _LOGGER.debug("%s has its Wi-Fi control switched off: %s", self.host, err)
+            raise UpdateFailed(str(err)) from err
         except WasherOfflineError as err:
             _LOGGER.debug("%s is offline: %s", self.host, err)
             raise UpdateFailed(str(err)) from err
@@ -93,56 +101,52 @@ class SamsungWasherCoordinator(DataUpdateCoordinator[WasherState | None]):
                     }
         return self._energy
 
+    def _user_error(self, err: WasherError, failure_key: str) -> HomeAssistantError:
+        """Turn a failed write into the message the user should see.
+
+        The two reasons the appliance is simply not listening - it left the network, or
+        it refuses to serve while its Wi-Fi control function is off - get their own
+        wording, because "the appliance did not apply the change" would send the owner
+        looking for a fault that is not there.
+        """
+        if isinstance(err, WasherControlDisabledError):
+            return HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="control_disabled",
+                translation_placeholders={"host": self.host},
+            )
+        if isinstance(err, WasherOfflineError):
+            return HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="offline",
+                translation_placeholders={"host": self.host},
+            )
+        return HomeAssistantError(
+            translation_domain=DOMAIN,
+            translation_key=failure_key,
+            translation_placeholders={"details": str(err)},
+        )
+
     async def async_set_operation_state(self, state: str) -> None:
         """Start, pause or resume, then publish the resulting state."""
         try:
             await self.client.async_set_operation_state(state)
-        except WasherOfflineError as err:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="offline",
-                translation_placeholders={"host": self.host},
-            ) from err
         except WasherError as err:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="write_failed",
-                translation_placeholders={"details": str(err)},
-            ) from err
+            raise self._user_error(err, "write_failed") from err
         await self.async_request_refresh()
 
     async def async_cancel(self) -> None:
         """Cancel the running cycle, then publish the resulting state."""
         try:
             await self.client.async_cancel()
-        except WasherOfflineError as err:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="offline",
-                translation_placeholders={"host": self.host},
-            ) from err
         except WasherError as err:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="cancel_failed",
-                translation_placeholders={"details": str(err)},
-            ) from err
+            raise self._user_error(err, "cancel_failed") from err
         await self.async_request_refresh()
 
     async def async_set_laundry_out_time(self, minutes: str) -> None:
         """Set the Laundry Out reminder, then publish the resulting state."""
         try:
             await self.client.async_set_laundry_out_time(minutes)
-        except WasherOfflineError as err:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="offline",
-                translation_placeholders={"host": self.host},
-            ) from err
         except WasherError as err:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="write_failed",
-                translation_placeholders={"details": str(err)},
-            ) from err
+            raise self._user_error(err, "write_failed") from err
         await self.async_request_refresh()

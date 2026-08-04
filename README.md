@@ -46,6 +46,13 @@ blinks on the display) and disconnects the machine from your network.
 Also give the appliance a **fixed IP** in your DHCP server. It does not send a
 hostname, and the integration addresses it by IP.
 
+Some firmware families are stricter still and answer every request with
+`403 SHE-001 "current function of WiFi is disabled, please enable the function for
+controlling"` while Remote Control is off, instead of just going quiet. That is the same
+situation and the same remedy: the credentials are fine, the appliance simply will not
+serve until Remote Control is on. The integration recognises this response and says so,
+in the log and on the configuration form.
+
 ## Requirements
 
 * A washing machine with **8888/tcp open**. Check with

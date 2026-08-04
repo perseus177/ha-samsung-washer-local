@@ -26,6 +26,7 @@
     },
     "error": {
       "cannot_connect": "The appliance is not reachable. It only stays on the Wi-Fi while Remote Control is switched on, so switch that on (with the door closed) and try again.",
+      "control_disabled": "The appliance answered, but refuses to serve while its Wi-Fi control function is switched off. Switch Remote Control (Smart Control) on at the panel, with the door closed, and try again. The certificate and the token are fine.",
       "invalid_auth": "The appliance rejected the device token.",
       "invalid_certificate": "The certificate or the private key could not be used. Check that both PEM blocks were pasted in full."
     },
@@ -166,6 +167,9 @@
   "exceptions": {
     "offline": {
       "message": "The appliance at {host} is not reachable. It only stays on the Wi-Fi while Remote Control is switched on."
+    },
+    "control_disabled": {
+      "message": "The appliance at {host} refuses to be controlled while its Wi-Fi control function is switched off. Switch Remote Control (Smart Control) on at the panel, with the door closed."
     },
     "write_failed": {
       "message": "The appliance did not apply the change: {details}"
