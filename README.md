@@ -31,9 +31,13 @@ entities, so no YAML is needed for the common case:
 
 | Entity | |
 |---|---|
-| `select` Programme to start | The programmes *this* appliance advertises. Starts on whatever the dial says, so it means something untouched. |
-| `select` Water temperature / Rinse cycles / Spin speed to use | **Only what the chosen programme allows.** Pick Drum Clean and the temperature list becomes `60` alone; pick Rinse + Spin and the temperature select goes unavailable, because that programme has none. |
+| `select` **1. Programme** | The programmes *this* appliance advertises. Starts on whatever the dial says, so it means something untouched. |
+| `select` **2. Water temperature**, **3. Rinse cycles**, **4. Spin speed** | **Only what the chosen programme allows.** Pick Drum Clean and the temperature list becomes `60` alone; pick Rinse + Spin and the temperature select goes unavailable, because that programme has none. |
 | `button` Start selected programme | Sends the lot. |
+
+The numbers are there because Home Assistant lists entities alphabetically and there is no
+ordering to set; without them the spin speed sorts first and the programme third, which reads
+backwards for something meant to be filled in from the top.
 
 Switching programme re-narrows the three lists and drops a value the new programme does not
 allow: 60 °C chosen under Cotton does not survive a switch to Super Eco, which is cold only —

@@ -93,7 +93,7 @@
         "name": "Zvyšná bielizeň"
       },
       "selected_programme": {
-        "name": "Program na spustenie",
+        "name": "1. Program",
         "state": {
           "cotton": "Bavlna",
           "extra_quick": "Extra Rýchly",
@@ -112,13 +112,13 @@
         }
       },
       "selected_temperature": {
-        "name": "Teplota vody"
+        "name": "2. Teplota vody"
       },
       "selected_rinse": {
-        "name": "Počet plákaní"
+        "name": "3. Počet plákaní"
       },
       "selected_spin": {
-        "name": "Odstreďovanie"
+        "name": "4. Odstreďovanie"
       }
     },
     "sensor": {

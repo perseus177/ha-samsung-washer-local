@@ -93,7 +93,7 @@
         "name": "Laundry Out reminder"
       },
       "selected_programme": {
-        "name": "Programme to start",
+        "name": "1. Programme",
         "state": {
           "cotton": "Cotton",
           "extra_quick": "Extra Quick",
@@ -112,13 +112,13 @@
         }
       },
       "selected_temperature": {
-        "name": "Water temperature to use"
+        "name": "2. Water temperature"
       },
       "selected_rinse": {
-        "name": "Rinse cycles to use"
+        "name": "3. Rinse cycles"
       },
       "selected_spin": {
-        "name": "Spin speed to use"
+        "name": "4. Spin speed"
       }
     },
     "sensor": {
