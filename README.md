@@ -44,8 +44,19 @@ is why it sits at the top of it, as 0. That
 is the appliance declining to be driven — it will not take a setting, it will not start, and
 within minutes it leaves the network altogether — so offering a dropdown that cannot be
 applied, still showing the last value it happened to see, would be a lie about the state of
-the machine. Start, Pause and Cancel stay pressable on purpose: they carry no value to
-misrepresent, and a press then reports what is actually wrong.
+the machine. **Start / resume, Pause and Cancel go with them** — they were pressable at first,
+on the reasoning that a button displays no value to misrepresent and a press could report a
+clear error, but a control that cannot possibly work is noise either way, and a pressable
+Start beside greyed-out dropdowns is worse than either rule on its own.
+
+One limit of that, stated because it is an assumption rather than a measurement: the appliance
+stays on the network for a whole wash whether Remote Control is on or not, and nobody has ever
+tried to *pause* a running cycle with it off. If that turns out to work, these buttons are
+hidden in a case where they would have been useful.
+
+The sensors keep their own rule and are not tied to Remote Control: with the appliance
+answering and Remote Control off, the readings are genuine, and there is no reason to hide
+progress or the remaining time.
 
 The seven are numbered because Home Assistant lists entities alphabetically and there is no
 ordering to set; without them the spin speed sorts first and the programme third, which reads
