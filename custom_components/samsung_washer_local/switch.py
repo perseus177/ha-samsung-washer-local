@@ -1,18 +1,34 @@
-"""Switches for Samsung Washer Local - currently just AddWash.
+"""Switches for Samsung Washer Local - the Add wash alarm and the moments it fires at.
 
-AddWash is one of the few things this appliance lets a local client write on its own,
-without wrapping it in a start command: verified on a TP6X_WW6500 by writing 7, reading it
-back and restoring 0, while a cycle was running.
+Add wash is the little door for a forgotten sock, and this setting is the *reminder* for it,
+not permission to use it. The official app words it: "If you need to add clothes just for a
+rinse or spin, or want to add a special softener during the wash, the Add wash alarm reminds
+you when to add your laundry or softener during the wash cycle." When it fires, the appliance
+says "The rinse is about to start. Please press the Pause button to add laundry."
 
-Underneath it is a three-bit mask, not a boolean - the official app builds it from three
-checkboxes (`parseInt(opt3 + opt2 + opt1, 2)`), so 0 through 7 are all valid. Only 0 and 7
-have been seen on real appliances, and "all three" is what someone means by switching
-AddWash on, so that is what this writes. The raw value stays visible as an attribute, and
-any non-zero mask reads as on rather than being rounded away.
+The appliance stores the whole thing in one place - ``AddWashSet``, a three-bit mask over the
+moments the alarm fires at, with the app's own labels for the bits:
+
+    bit 0  when rinsing starts          (WEBMOB_device_washer_add_wash_when_start_rinse)
+    bit 1  when the final rinse starts  (..._add_wash_when_start_last_rinse)
+    bit 2  when spinning starts         (..._add_wash_when_start_spin)
+
+The app shows that as a master switch with three checkboxes underneath, and the checkboxes are
+greyed out while the master is off. Mirrored here: the alarm switch is on whenever the mask is
+non-zero, and the three moment switches are unavailable while it is off. Since the mask *is*
+the state, switching the alarm off means zero - so turning it back on enables all three
+moments again rather than restoring a previous combination, which the appliance does not
+remember either.
+
+Writable on its own, verified on a TP6X_WW6500 by writing 7, reading it back and restoring 0.
+``AddWashAvailable`` is a different value - what the appliance permits for the programme it
+currently has loaded, 7 on Cotton and 0 during a Drum Clean - and it does not gate any of
+this: that write went through while a Drum Clean was running and availability read 0.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
@@ -21,18 +37,44 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import SamsungWasherConfigEntry
-from .const import ADD_WASH_ALL, ADD_WASH_NONE
+from .const import ADD_WASH_ALL, ADD_WASH_DESCRIPTION, ADD_WASH_NONE
 from .coordinator import SamsungWasherCoordinator
 from .entity import SamsungWasherControlEntity
 
 PARALLEL_UPDATES = 1
 
-DESCRIPTION = SwitchEntityDescription(
-    key="add_wash_set",
-    translation_key="add_wash_set",
-    # Numbered and categorised with the five selects: it is one more thing chosen before a
-    # wash, and entities are listed per category, so a number alone would not group it.
-    entity_category=EntityCategory.CONFIG,
+
+@dataclass(frozen=True, kw_only=True)
+class WasherSwitchDescription(SwitchEntityDescription):
+    """Describes a switch. ``bit`` is None for the alarm's own master switch."""
+
+    bit: int | None = None
+
+
+SWITCHES: tuple[WasherSwitchDescription, ...] = (
+    WasherSwitchDescription(
+        key="add_wash_set",
+        translation_key="add_wash_set",
+        entity_category=EntityCategory.CONFIG,
+    ),
+    WasherSwitchDescription(
+        key="add_wash_rinse",
+        translation_key="add_wash_rinse",
+        entity_category=EntityCategory.CONFIG,
+        bit=0,
+    ),
+    WasherSwitchDescription(
+        key="add_wash_last_rinse",
+        translation_key="add_wash_last_rinse",
+        entity_category=EntityCategory.CONFIG,
+        bit=1,
+    ),
+    WasherSwitchDescription(
+        key="add_wash_spin",
+        translation_key="add_wash_spin",
+        entity_category=EntityCategory.CONFIG,
+        bit=2,
+    ),
 )
 
 
@@ -42,50 +84,87 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the switches."""
-    async_add_entities([WasherAddWashSwitch(entry.runtime_data)])
+    coordinator = entry.runtime_data
+    async_add_entities(
+        WasherAddWashSwitch(coordinator, description) for description in SWITCHES
+    )
 
 
 class WasherAddWashSwitch(SamsungWasherControlEntity, SwitchEntity):
-    """The AddWash feature's own on/off."""
+    """The Add wash alarm, or one of the moments it fires at."""
 
-    entity_description = DESCRIPTION
+    entity_description: WasherSwitchDescription
 
-    def __init__(self, coordinator: SamsungWasherCoordinator) -> None:
+    def __init__(
+        self, coordinator: SamsungWasherCoordinator, description: WasherSwitchDescription
+    ) -> None:
         """Initialise the switch."""
-        super().__init__(coordinator, DESCRIPTION.key)
+        super().__init__(coordinator, description.key)
+        self.entity_description = description
 
     @property
-    def is_on(self) -> bool | None:
-        """Return whether AddWash is enabled for any phase."""
+    def _mask(self) -> int | None:
+        """Return the mask as a number, or None while it has not been read."""
         state = self.coordinator.data
         if state is None or state.add_wash_set is None:
             return None
-        return state.add_wash_set != ADD_WASH_NONE
+        try:
+            return int(state.add_wash_set)
+        except ValueError:
+            return None
+
+    @property
+    def available(self) -> bool:
+        """Return whether this switch can be used.
+
+        The moment switches follow the alarm, the way the app greys its checkboxes out while
+        the master is off. The alarm itself is always available, like the other controls.
+        """
+        if self.entity_description.bit is None:
+            return super().available
+        mask = self._mask
+        return super().available and mask is not None and mask != 0
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return whether the alarm is on, or whether this moment is one of its own."""
+        mask = self._mask
+        if mask is None:
+            return None
+        bit = self.entity_description.bit
+        return mask != 0 if bit is None else bool(mask >> bit & 1)
 
     @property
     def extra_state_attributes(self) -> dict[str, str] | None:
-        """Expose the mask, and which phases the current programme allows it in.
+        """Expose the mask, what the feature is, and where the appliance permits it.
 
-        Two different things, deliberately kept apart. ``raw`` is this switch's own value.
-        ``available_phases`` is what the appliance says AddWash can be used in *for the
-        programme it currently has loaded* - 7 on Cotton, 0 on Drum Clean, and it moves as
-        options are selected. It is not a gate on the switch: writing AddWashSet was
-        verified to work on this appliance while a Drum Clean was running and the
-        availability read 0. The AddWash available binary sensor carries the same value if
-        an automation needs to act on it.
+        The description is here because Home Assistant has nowhere else to put one - there is
+        no tooltip for an entity - and the more-info dialog shows attributes.
+        ``available_phases`` belongs to the programme the appliance currently has loaded, not
+        to these switches; it is reported, never enforced.
         """
         state = self.coordinator.data
         if state is None or state.add_wash_set is None:
             return None
         attributes = {"raw": state.add_wash_set}
+        if self.entity_description.bit is None:
+            attributes["description"] = ADD_WASH_DESCRIPTION
         if state.add_wash_available_raw is not None:
             attributes["available_phases"] = state.add_wash_available_raw
         return attributes
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Enable AddWash for every phase."""
-        await self.coordinator.async_set_add_wash(ADD_WASH_ALL)
+        """Switch the alarm on for every moment, or add this moment to it."""
+        bit = self.entity_description.bit
+        if bit is None:
+            await self.coordinator.async_set_add_wash(ADD_WASH_ALL)
+        else:
+            await self.coordinator.async_set_add_wash(str((self._mask or 0) | 1 << bit))
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Disable AddWash."""
-        await self.coordinator.async_set_add_wash(ADD_WASH_NONE)
+        """Switch the alarm off entirely, or drop this one moment from it."""
+        bit = self.entity_description.bit
+        if bit is None:
+            await self.coordinator.async_set_add_wash(ADD_WASH_NONE)
+        else:
+            await self.coordinator.async_set_add_wash(str((self._mask or 0) & ~(1 << bit)))

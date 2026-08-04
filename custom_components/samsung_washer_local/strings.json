@@ -199,7 +199,16 @@
     },
     "switch": {
       "add_wash_set": {
-        "name": "6. AddWash"
+        "name": "6. Add wash alarm"
+      },
+      "add_wash_rinse": {
+        "name": "6a. Alarm when rinsing starts"
+      },
+      "add_wash_last_rinse": {
+        "name": "6b. Alarm when the final rinse starts"
+      },
+      "add_wash_spin": {
+        "name": "6c. Alarm when spinning starts"
       }
     }
   },

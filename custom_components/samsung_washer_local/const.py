@@ -107,10 +107,18 @@ WRITABLE_SETTINGS = {
     "wash_time": "washTime",
 }
 
-# AddWash's own enable value is a three-bit mask (the app builds it from three
-# checkboxes), so 0-7 are all valid; 0 and 7 are the ones real appliances report.
+# The Add wash alarm is stored as one three-bit mask over the moments it fires at, so 0-7
+# are all valid: 0 is the alarm off, 7 is all three moments. See switch.py.
 ADD_WASH_NONE = "0"
 ADD_WASH_ALL = "7"
+# The appliance's own explanation of the feature, from the plugin's translations
+# (WEBMOB_device_washer_add_wash_desc). Carried as an attribute because Home Assistant has
+# no tooltip for an entity and the more-info dialog does show attributes.
+ADD_WASH_DESCRIPTION = (
+    "If you need to add clothes just for a rinse or spin, or want to add a special softener"
+    " during the wash, the Add wash alarm reminds you when to add your laundry or softener"
+    " during the wash cycle."
+)
 
 SERVICE_START_CYCLE = "start_cycle"
 ATTR_PROGRAMME = "programme"

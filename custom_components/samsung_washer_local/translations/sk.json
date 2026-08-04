@@ -199,7 +199,16 @@
     },
     "switch": {
       "add_wash_set": {
-        "name": "6. AddWash"
+        "name": "6. Upozornenie na pridanie bielizne"
+      },
+      "add_wash_rinse": {
+        "name": "6a. Upozorniť pri začiatku plákania"
+      },
+      "add_wash_last_rinse": {
+        "name": "6b. Upozorniť pri začiatku posledného plákania"
+      },
+      "add_wash_spin": {
+        "name": "6c. Upozorniť pri začiatku odstreďovania"
       }
     }
   },

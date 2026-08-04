@@ -34,7 +34,8 @@ entities, so no YAML is needed for the common case:
 | `select` **1. Programme** | The programmes *this* appliance advertises. Starts on whatever the dial says, so it means something untouched. |
 | `select` **2. Water temperature**, **3. Rinse cycles**, **4. Spin speed** | **Only what the chosen programme allows.** Pick Drum Clean and the temperature list becomes `60` alone; pick Rinse + Spin and the temperature select goes unavailable, because that programme has none. |
 | `select` **5. Laundry Out reminder** | The one that writes straight away, since the appliance takes this reminder on its own. Numbered with the rest because it is the last thing chosen before a wash. |
-| `switch` **6. AddWash** | Writes straight away, like 5. Whether AddWash can actually be *used* depends on the programme — the appliance reports that separately, and it is not a gate: the switch was verified writable while a Drum Clean ran and availability read `0`. |
+| `switch` **6. Add wash alarm** | The reminder for adding a forgotten sock mid-cycle. Writes straight away, like 5. |
+| `switch` **6a / 6b / 6c** | *When rinsing starts*, *when the final rinse starts*, *when spinning starts* — which moments the alarm fires at. Unavailable while 6 is off, exactly as the app greys its checkboxes out. |
 | `button` Start selected programme | Sends 1–4. |
 
 The numbers are there because Home Assistant lists entities alphabetically and there is no
@@ -91,6 +92,28 @@ own refusal would point at the wrong thing:
   as a refusal.)
 - **The appliance has to be idle**, or a start would resume the programme already loaded
   rather than the one asked for.
+
+### The Add wash alarm
+
+In the appliance's own words: *"If you need to add clothes just for a rinse or spin, or want
+to add a special softener during the wash, the Add wash alarm reminds you when to add your
+laundry or softener during the wash cycle."* When it fires, it says *"The rinse is about to
+start. Please press the Pause button to add laundry."*
+
+It is stored as a single three-bit mask, `AddWashSet` — bit 0 rinse, bit 1 final rinse, bit 2
+spin — which is why it is four entities over one value: switch **6** is the alarm itself (on
+whenever the mask is non-zero) and **6a–6c** are the moments, unavailable while 6 is off. Two
+consequences of the encoding, rather than of this integration: turning 6 off means zero, so
+turning it back on enables all three moments rather than restoring the previous combination;
+and switching off the last remaining moment is the same thing as switching the alarm off.
+
+The description above is also carried as an attribute on switch 6, since Home Assistant has
+no tooltip for an entity and the more-info dialog does show attributes.
+
+Whether AddWash can be *used* at all is a different value — `AddWashAvailable`, which the
+appliance recomputes per programme (7 on Cotton, 0 during a Drum Clean) and publishes as the
+**AddWash available** binary sensor. It does not gate these switches: the mask was verified
+writable while a Drum Clean was running and availability read `0`.
 
 ### Cancelling
 
@@ -214,7 +237,7 @@ and restart Home Assistant.
 | `select` 5. Laundry Out reminder | `0` / `30` / `60` / `90` minutes — writes straight to the appliance |
 | `select` Programme / temperature / rinse / spin to start | The choice for the next start; see above. Writes nothing on its own |
 | `button` Start selected programme | Starts that choice |
-| `switch` 6. AddWash | Writable. A three-bit mask underneath (`0`–`7`), so the raw value is kept in an attribute; on writes `7`. `available_phases` carries which phases the current programme allows it in |
+| `switch` 6. Add wash alarm, 6a–6c the moments | One three-bit mask on the appliance: bit 0 rinse, bit 1 final rinse, bit 2 spin. `0` is the alarm off, `7` all three. The raw mask and `available_phases` are attributes |
 | `sensor` Quick wash | Read-only — the appliance reports whether it has a quick-wash preset, and the app has no write for it either |
 
 Everything the appliance exposes is covered: `resources` lists exactly eight
